@@ -64,14 +64,14 @@
       <a href="#/pool" class="nav-link" data-route="/pool">Yong Pool</a>
       <!-- More dropdown -->
       <div class="relative" id="moreDropdown">
-        <button class="nav-link flex items-center gap-1" id="moreBtn" type="button">
+        <button class="nav-link flex items-center gap-1" id="moreBtn">
           More
           <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
         </button>
         <div id="moreMenu" class="hidden absolute right-0 mt-2 w-48 card py-1.5 z-50 shadow-xl">
           <a href="#/announcements" class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface2 transition" data-route="/announcements">📢 Announcements</a>
           <a href="#/courses" class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface2 transition" data-route="/courses">📚 Courses</a>
-          <a href="#/earn" class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface2 transition" data-route="/earn">💵 Earn USDT</a>
+          <a href="#/earn" class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface2 transition" data-route="/earn">✨ Earn Yong Stars</a>
         </div>
       </div>
       <a href="#/profile" class="nav-link flex items-center gap-2" data-route="/profile" id="navProfile">
@@ -215,15 +215,15 @@
   </div>
 </section>
 
-<!-- ===================== EARN USDT VIEW ===================== -->
+<!-- ===================== EARN YONG STARS VIEW ===================== -->
 <section id="view-earn" class="space-y-6 hidden">
   <div class="card p-6">
     <div class="text-xs uppercase tracking-wider text-brand">Rewards</div>
-    <h1 class="text-2xl md:text-3xl font-extrabold mt-1">💵 Earn USDT</h1>
-    <p class="text-sm text-mute mt-1">Complete tasks and earn USDT rewards from Yong Social.</p>
+    <h1 class="text-2xl md:text-3xl font-extrabold mt-1">✨ Earn Yong Stars</h1>
+    <p class="text-sm text-mute mt-1">Complete tasks and earn Yong Stars rewards from Yong Social.</p>
   </div>
   <div class="card p-10 flex flex-col items-center justify-center text-center gap-3">
-    <div class="text-4xl">💵</div>
+    <div class="text-4xl">✨</div>
     <div class="font-semibold text-lg">Coming Soon</div>
     <p class="text-sm text-mute max-w-xs">Earn opportunities will be available here shortly.</p>
   </div>
@@ -246,6 +246,83 @@
       <div id="profileName" class="text-xl font-bold truncate">—</div>
       <div id="profileHandle" class="text-sm text-mute truncate">—</div>
       <div id="profileId" class="text-xs text-mute mt-1">—</div>
+    </div>
+  </div>
+
+  <!-- Yong Stars Wallet -->
+  <div id="starsWallet" class="card p-6 hidden">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <div class="text-xs uppercase tracking-wider text-mute">Wallet</div>
+        <div class="text-lg font-bold mt-0.5">Yong Stars</div>
+      </div>
+      <span class="text-3xl">✨</span>
+    </div>
+    <div class="flex items-end gap-2 mb-6">
+      <div id="starsBalance" class="text-4xl font-extrabold text-brand">0</div>
+      <div class="text-mute text-sm mb-1">YS</div>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <button id="btnBuyStars" class="btn-brand rounded-xl px-4 py-3 text-sm flex items-center justify-center gap-2">
+        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+        Buy Stars
+      </button>
+      <button id="btnConvertStars" class="btn-ghost rounded-xl px-4 py-3 text-sm flex items-center justify-center gap-2">
+        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4"/></svg>
+        Convert to USDT
+      </button>
+    </div>
+  </div>
+
+  <!-- Buy Stars Modal -->
+  <div id="buyModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink/80 backdrop-blur hidden">
+    <div class="card w-full max-w-sm mx-4 p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="font-bold text-lg">✨ Buy Yong Stars</div>
+        <button id="closeBuyModal" class="text-mute hover:text-white text-xl leading-none">×</button>
+      </div>
+      <p class="text-sm text-mute">Choose a package to top up your Yong Stars balance.</p>
+      <div class="grid grid-cols-2 gap-3">
+        <button class="star-pkg btn-ghost rounded-xl p-4 text-center" data-stars="100" data-price="0.99">
+          <div class="text-2xl font-extrabold text-brand">100</div>
+          <div class="text-xs text-mute mt-1">Yong Stars</div>
+          <div class="text-xs font-semibold mt-2">$0.99</div>
+        </button>
+        <button class="star-pkg btn-ghost rounded-xl p-4 text-center" data-stars="500" data-price="3.99">
+          <div class="text-2xl font-extrabold text-brand">500</div>
+          <div class="text-xs text-mute mt-1">Yong Stars</div>
+          <div class="text-xs font-semibold mt-2">$3.99</div>
+        </button>
+        <button class="star-pkg btn-ghost rounded-xl p-4 text-center" data-stars="1000" data-price="6.99">
+          <div class="text-2xl font-extrabold text-brand">1,000</div>
+          <div class="text-xs text-mute mt-1">Yong Stars</div>
+          <div class="text-xs font-semibold mt-2">$6.99</div>
+        </button>
+        <button class="star-pkg btn-ghost rounded-xl p-4 text-center relative" data-stars="5000" data-price="24.99">
+          <div class="absolute -top-2 left-1/2 -translate-x-1/2 bg-brand2 text-ink text-[10px] font-bold px-2 py-0.5 rounded-full">BEST VALUE</div>
+          <div class="text-2xl font-extrabold text-brand">5,000</div>
+          <div class="text-xs text-mute mt-1">Yong Stars</div>
+          <div class="text-xs font-semibold mt-2">$24.99</div>
+        </button>
+      </div>
+      <p class="text-[11px] text-mute text-center">Payments coming soon. Tap a package to register interest.</p>
+    </div>
+  </div>
+
+  <!-- Convert Modal -->
+  <div id="convertModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink/80 backdrop-blur hidden">
+    <div class="card w-full max-w-sm mx-4 p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="font-bold text-lg">💱 Convert to USDT</div>
+        <button id="closeConvertModal" class="text-mute hover:text-white text-xl leading-none">×</button>
+      </div>
+      <div class="bg-surface2 rounded-xl p-4 text-sm space-y-2">
+        <div class="flex justify-between"><span class="text-mute">Your balance</span><span id="convertBalance" class="font-bold text-brand">0 YS</span></div>
+        <div class="flex justify-between"><span class="text-mute">Rate</span><span class="font-medium">100 YS = $0.10 USDT</span></div>
+        <div class="border-t border-line pt-2 flex justify-between"><span class="text-mute">Est. value</span><span id="convertValue" class="font-bold text-brand2">$0.00 USDT</span></div>
+      </div>
+      <p class="text-sm text-mute">Minimum conversion: 1,000 Yong Stars.</p>
+      <button class="btn-brand w-full rounded-xl py-3 text-sm opacity-50 cursor-not-allowed" disabled>Convert (Coming Soon)</button>
     </div>
   </div>
 
@@ -351,6 +428,7 @@ function renderProfile(){
   document.getElementById('profileLoading').classList.add('hidden');
   document.getElementById('profileCard').classList.remove('hidden');
   document.getElementById('profileForm').classList.remove('hidden');
+  document.getElementById('starsWallet').classList.remove('hidden');
   const avatar = document.getElementById('profileAvatar');
   if (PROFILE.photoUrl){ avatar.outerHTML = `<img id="profileAvatar" src="${PROFILE.photoUrl}" alt="" class="w-20 h-20 rounded-2xl object-cover border border-line"/>`; }
   else { avatar.textContent = (PROFILE.displayName||PROFILE.firstName||'Y').slice(0,1).toUpperCase(); }
@@ -372,6 +450,35 @@ function renderProfile(){
     } catch(e){ document.getElementById('saveStatus').innerHTML = '<span class="text-danger">'+e.message+'</span>'; }
     finally { btn.disabled = false; btn.textContent = 'Save profile'; }
   };
+
+  // Yong Stars wallet
+  const starsBalance = PROFILE.starsBalance || 0;
+  document.getElementById('starsBalance').textContent = starsBalance.toLocaleString();
+  document.getElementById('convertBalance').textContent = starsBalance.toLocaleString() + ' YS';
+  document.getElementById('convertValue').textContent = '$' + (starsBalance * 0.001).toFixed(2) + ' USDT';
+
+  // Buy modal
+  const buyModal = document.getElementById('buyModal');
+  document.getElementById('btnBuyStars').onclick = () => buyModal.classList.remove('hidden');
+  document.getElementById('closeBuyModal').onclick = () => buyModal.classList.add('hidden');
+  buyModal.addEventListener('click', e => { if (e.target === buyModal) buyModal.classList.add('hidden'); });
+  document.querySelectorAll('.star-pkg').forEach(btn => {
+    btn.onclick = () => {
+      const stars = btn.dataset.stars;
+      const price = btn.dataset.price;
+      // Show toast-style feedback
+      btn.classList.add('border-brand');
+      const orig = btn.querySelector('.text-xs.font-semibold').textContent;
+      btn.querySelector('.text-xs.font-semibold').textContent = 'Interest noted!';
+      setTimeout(() => { btn.classList.remove('border-brand'); btn.querySelector('.text-xs.font-semibold').textContent = orig; }, 1500);
+    };
+  });
+
+  // Convert modal
+  const convertModal = document.getElementById('convertModal');
+  document.getElementById('btnConvertStars').onclick = () => convertModal.classList.remove('hidden');
+  document.getElementById('closeConvertModal').onclick = () => convertModal.classList.add('hidden');
+  convertModal.addEventListener('click', e => { if (e.target === convertModal) convertModal.classList.add('hidden'); });
 }
 
 /* ================ CONFIG ================ */
@@ -462,31 +569,17 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':
 /* ================ DROPDOWN ================ */
 const moreBtn = document.getElementById("moreBtn");
 const moreMenu = document.getElementById("moreMenu");
-
-// Toggle dropdown on button click
-moreBtn.addEventListener("click", function(e) {
-  e.preventDefault();
+moreBtn.addEventListener("click", function(e){
   e.stopPropagation();
   moreMenu.classList.toggle("hidden");
 });
-
-// Close dropdown when clicking outside
-document.addEventListener("click", function(e) {
+document.addEventListener("click", function(e){
   if (!moreBtn.contains(e.target) && !moreMenu.contains(e.target)) {
     moreMenu.classList.add("hidden");
   }
 });
-
-// Close dropdown when clicking a menu item
 document.querySelectorAll("#moreMenu a").forEach(link => {
-  link.addEventListener("click", function() {
-    moreMenu.classList.add("hidden");
-  });
-});
-
-// Prevent clicks inside the dropdown from closing it
-moreMenu.addEventListener("click", function(e) {
-  e.stopPropagation();
+  link.addEventListener("click", () => moreMenu.classList.add("hidden"));
 });
 
 /* ================ ROUTER ================ */
