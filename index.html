@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -24,7 +23,7 @@
 // ============================================
 const TON_CONFIG = {
     // ✅ YOUR TON WALLET ADDRESS
-    RECEIVER_ADDRESS: 'UQCNkn-JKMvyH4StWJtsTVG4UMx0BbcTMaHiVMn8iYJPAp4V',
+    RECEIVER_ADDRESS: 'UQDf2YHL2A8EpYO7QO233qUmqOsH7NEj5ZAY7HvwtikQunwB',
     
     // Fixed payment amount in USD
     PAYMENT_AMOUNT_USD: 1.00,
@@ -716,81 +715,129 @@ class TONPaymentSystem {
         if (this.isProcessing) return;
         this.isProcessing = true;
 
-        // Refresh price right before generating the link
         await this.updatePriceAndAmount(true);
 
         const userId = this.getUserId();
         const amountNano = Math.floor(this.paymentAmountTON * 1e9);
-        const links = this.buildWalletLinks(amountNano, 'ys_' + userId);
+        const comment = 'ys_' + userId;
+        const links = this.buildWalletLinks(amountNano, comment);
 
-        // Default: open Tonkeeper universal link (works in Telegram + desktop)
         this.openWalletLink(links.tonkeeper);
+        this.payBtn?.classList.add('hidden');
 
-        // Switch UI to waiting state
         if (this.statusIcon)  this.statusIcon.textContent  = '⏳';
-        if (this.statusTitle) this.statusTitle.textContent = 'Waiting for Payment…';
+        if (this.statusTitle) this.statusTitle.textContent = 'Complete Your Payment';
         if (this.statusDesc)  this.statusDesc.innerHTML = `
             <div class="flex flex-col items-center gap-3 mt-2">
-                <div class="spinner"></div>
-                <p class="text-sm text-center">Complete the payment in your wallet, then come back here.</p>
-                <p class="text-xs text-mute">Checking automatically every 5 seconds…</p>
-                <div class="flex flex-wrap gap-2 justify-center mt-1">
+                <p class="text-sm text-center">Send <strong>${this.paymentAmountTON} TON</strong> in your wallet.<br>Make sure the comment <code class="bg-surface2 px-1.5 py-0.5 rounded text-brand font-mono text-xs">${comment}</code> is included — it's pre-filled.</p>
+                <div class="flex flex-wrap gap-2 justify-center">
                     <button id="openTonkeeperBtn" class="chip px-3 py-1.5 text-xs">Tonkeeper</button>
-                    <button id="openTonhubBtn" class="chip px-3 py-1.5 text-xs">Tonhub</button>
-                    <button id="openMytonBtn" class="chip px-3 py-1.5 text-xs">MyTonWallet</button>
-                    <button id="openNativeBtn" class="chip px-3 py-1.5 text-xs">Other (ton://)</button>
+                    <button id="openTonhubBtn"    class="chip px-3 py-1.5 text-xs">Tonhub</button>
+                    <button id="openMytonBtn"     class="chip px-3 py-1.5 text-xs">MyTonWallet</button>
+                    <button id="openNativeBtn"    class="chip px-3 py-1.5 text-xs">Other (ton://)</button>
                 </div>
-                <button id="iDidPayBtn" class="btn-brand rounded-xl px-6 py-2.5 text-sm mt-1">✅ I've Paid — Check Now</button>
+                <button id="iDidPayBtn" class="btn-brand rounded-xl px-6 py-2.5 text-sm mt-1">✅ I've Paid — Submit</button>
             </div>`;
-        // Wire wallet picker
+
         document.getElementById('openTonkeeperBtn')?.addEventListener('click', () => this.openWalletLink(links.tonkeeper));
         document.getElementById('openTonhubBtn')?.addEventListener('click',    () => this.openWalletLink(links.tonhub));
         document.getElementById('openMytonBtn')?.addEventListener('click',     () => this.openWalletLink(links.mytonwallet));
         document.getElementById('openNativeBtn')?.addEventListener('click',    () => this.openWalletLink(links.native));
 
-        this.payBtn?.classList.add('hidden');
         document.getElementById('iDidPayBtn')?.addEventListener('click', () => {
-            clearTimeout(this._pollTimer);
-            this.pollForPayment(userId, 0);
+            this.showWalletSubmitForm(userId, comment);
         });
-
-        this.pollForPayment(userId, 0);
     }
 
-    pollForPayment(userId, attempts) {
-        const MAX = 36; // 3 minutes
-        this._pollTimer = setTimeout(async () => {
+    showWalletSubmitForm(userId, comment) {
+        if (this.statusIcon)  this.statusIcon.textContent  = '💎';
+        if (this.statusTitle) this.statusTitle.textContent = 'Confirm Your Payment';
+        if (this.statusDesc)  this.statusDesc.innerHTML = `
+            <div class="flex flex-col gap-3 mt-2 text-left">
+                <p class="text-sm text-mute text-center">Enter the TON wallet address you sent from so we can verify your transaction.</p>
+                <div>
+                    <label class="block text-xs text-mute mb-1">Your sender wallet address</label>
+                    <input id="senderWalletInput" type="text" placeholder="UQ…" class="w-full rounded-xl bg-surface2 border border-line px-4 py-3 text-sm outline-none focus:border-brand font-mono" />
+                </div>
+                <div id="submitPaymentError" class="text-xs text-danger hidden"></div>
+                <button id="submitPaymentBtn" class="btn-brand rounded-xl px-6 py-2.5 text-sm">Submit for Review</button>
+                <p class="text-xs text-mute text-center">Our team will verify on the TON blockchain and approve within minutes.</p>
+            </div>`;
+
+        document.getElementById('submitPaymentBtn')?.addEventListener('click', () => {
+            this.submitPaymentRecord(userId, comment);
+        });
+    }
+
+    async submitPaymentRecord(userId, comment) {
+        const walletInput = document.getElementById('senderWalletInput');
+        const errEl = document.getElementById('submitPaymentError');
+        const submitBtn = document.getElementById('submitPaymentBtn');
+        const senderWallet = walletInput?.value.trim();
+
+        if (!senderWallet || senderWallet.length < 20) {
+            errEl.textContent = 'Please enter a valid TON wallet address.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
+        errEl.classList.add('hidden');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting…';
+
+        try {
+            const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js');
+            const refCode = comment; // e.g. ys_123456
+
+            await addDoc(collection(db, 'payments'), {
+                userId:       userId,
+                refCode:      refCode,
+                senderWallet: senderWallet,
+                amount:       this.paymentAmountTON,
+                comment:      refCode,
+                status:       'submitted',
+                createdAt:    serverTimestamp(),
+            });
+
+            if (this.statusIcon)  this.statusIcon.textContent  = '🕐';
+            if (this.statusTitle) this.statusTitle.textContent = 'Submitted — Pending Review';
+            if (this.statusDesc)  this.statusDesc.innerHTML = `
+                <div class="flex flex-col items-center gap-2 mt-2">
+                    <p class="text-sm text-center text-mute">Your payment is being verified on the TON blockchain.<br>This usually takes just a few minutes.</p>
+                    <p class="text-xs text-mute">You'll gain access as soon as it's approved. You can close this for now.</p>
+                    <button id="closeOverlayBtn" class="btn-ghost rounded-xl px-6 py-2.5 text-sm mt-2">Close</button>
+                </div>`;
+            document.getElementById('closeOverlayBtn')?.addEventListener('click', () => this.hidePaymentOverlay());
+
+            // Start polling for approval
+            this.pollForApproval(userId);
+
+        } catch (err) {
+            errEl.textContent = 'Error submitting: ' + err.message;
+            errEl.classList.remove('hidden');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit for Review';
+        }
+    }
+
+    pollForApproval(userId) {
+        const MAX = 72; // 6 minutes
+        let attempts = 0;
+        const check = async () => {
             const paid = await this.checkPaymentStatus();
             if (paid) {
-                this.isProcessing = false;
                 if (this.statusIcon)  this.statusIcon.textContent  = '🎉';
-                if (this.statusTitle) this.statusTitle.textContent = 'Payment Successful!';
-                if (this.statusDesc)  this.statusDesc.innerHTML    = `
-                    <p class="text-brand2 font-semibold mt-2">Your profile is now active.</p>`;
+                if (this.statusTitle) this.statusTitle.textContent = 'Payment Approved!';
+                if (this.statusDesc)  this.statusDesc.innerHTML    = `<p class="text-brand2 font-semibold mt-2">Your profile is now active.</p>`;
                 await loadProfile();
                 renderProfile();
                 setTimeout(() => this.hidePaymentOverlay(), 2500);
                 return;
             }
-            if (attempts >= MAX) {
-                this.isProcessing = false;
-                if (this.statusIcon)  this.statusIcon.textContent  = '❌';
-                if (this.statusTitle) this.statusTitle.textContent = 'Payment Not Detected';
-                if (this.statusDesc)  this.statusDesc.innerHTML    = `
-                    <p class="text-sm text-mute mt-2">We didn't detect your payment after 3 minutes.</p>
-                    <p class="text-xs text-mute mt-1">If you paid, contact support with your TX hash.</p>
-                    <button id="retryPayBtn" class="btn-brand rounded-xl px-6 py-2.5 text-sm mt-3">Try Again</button>`;
-                document.getElementById('retryPayBtn')?.addEventListener('click', () => {
-                    if (this.statusIcon)  this.statusIcon.textContent  = '💎';
-                    if (this.statusTitle) this.statusTitle.textContent = 'Pay to Access Yong Social';
-                    this.updatePriceAndAmount();
-                    this.payBtn?.classList.remove('hidden');
-                    this.isProcessing = false;
-                });
-                return;
-            }
-            this.pollForPayment(userId, attempts + 1);
-        }, attempts === 0 ? 5000 : 5000);
+            attempts++;
+            if (attempts < MAX) this._pollTimer = setTimeout(check, 5000);
+        };
+        this._pollTimer = setTimeout(check, 5000);
     }
 
     updatePaymentBadge(status, text) {
