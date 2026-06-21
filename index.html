@@ -8,10 +8,43 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+<!-- TON Connect Dependencies -->
+<script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>const _cw=console.warn.bind(console);console.warn=(...a)=>{if(typeof a[0]==='string'&&a[0].includes('cdn.tailwindcss.com'))return;_cw(...a);};</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<!-- TON Configuration -->
+<script>
+// ============================================
+// TON CONFIGURATION - UPDATE THESE VALUES
+// ============================================
+const TON_CONFIG = {
+    // YOUR TON WALLET ADDRESS TO RECEIVE PAYMENTS
+    // Get this from Tonkeeper, Telegram Wallet, or any TON wallet
+    RECEIVER_ADDRESS: 'UQCX...YOUR_TON_WALLET_ADDRESS_HERE...', // ⚠️ REPLACE THIS
+    
+    // Payment amount in USD (fixed)
+    PAYMENT_AMOUNT_USD: 1.00,
+    
+    // Network: 'mainnet' or 'testnet'
+    NETWORK: 'mainnet',
+    
+    // Your domain for TON Connect manifest
+    // Create tonconnect-manifest.json at this URL
+    MANIFEST_URL: 'https://your-domain.com/tonconnect-manifest.json', // ⚠️ REPLACE THIS
+    
+    // Price cache duration (milliseconds)
+    PRICE_CACHE_DURATION: 60000, // 1 minute
+    
+    // Fallback TON price if API fails
+    FALLBACK_TON_PRICE: 2.50,
+};
+</script>
+
 <script>
   tailwind.config = {
     theme: {
@@ -26,6 +59,7 @@
     },
   };
 </script>
+
 <style>
   html,body{background:#070b14;color:#e7ecf5;font-family:Inter,system-ui,sans-serif}
   .card{background:linear-gradient(180deg,#0f1626,#0b1120);border:1px solid #1f2940;border-radius:18px}
@@ -46,10 +80,100 @@
   .bar-fill{height:100%;background:linear-gradient(90deg,#d4b25a,#22c984);transition:width .6s ease}
   .pulse-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c984;box-shadow:0 0 0 0 rgba(34,201,132,.7);animation:pd 1.6s infinite}
   @keyframes pd{0%{box-shadow:0 0 0 0 rgba(34,201,132,.6)}70%{box-shadow:0 0 0 10px rgba(34,201,132,0)}100%{box-shadow:0 0 0 0 rgba(34,201,132,0)}}
+  
+  /* Payment Overlay */
+  .payment-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(7, 11, 20, 0.95);
+    backdrop-filter: blur(12px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .payment-overlay.active { display: flex; }
+  .payment-modal { max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; }
+  .payment-status { transition: all 0.3s ease; }
+  .payment-status.success { border-color: #22c984; }
+  .payment-status.error { border-color: #ef4444; }
+  .payment-status.pending { border-color: #d4b25a; }
+  
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #1f2940;
+    border-top-color: #d4b25a;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  
+  .staking-info {
+    background: linear-gradient(135deg, rgba(212, 178, 90, 0.1), rgba(34, 201, 132, 0.1));
+    border: 1px solid rgba(212, 178, 90, 0.3);
+  }
+  
+  /* TON Connect button override */
+  .ton-connect-btn { background: #d4b25a !important; color: #0b1120 !important; font-weight: 600 !important; border-radius: 9999px !important; padding: 0.75rem 1.5rem !important; }
+  .ton-connect-btn:hover { filter: brightness(1.05) !important; }
 </style>
 </head>
 <body class="min-h-screen grain">
 
+<!-- ============================================ -->
+<!-- PAYMENT OVERLAY - Shows when user hasn't paid -->
+<!-- ============================================ -->
+<div id="paymentOverlay" class="payment-overlay">
+  <div class="payment-modal card p-6">
+    <div id="paymentContent" class="space-y-6">
+      
+      <!-- Payment Status -->
+      <div id="paymentStatus" class="payment-status border-2 rounded-2xl p-6 text-center">
+        <div id="statusIcon" class="text-5xl mb-3">💎</div>
+        <h2 id="statusTitle" class="text-xl font-bold">Pay to Access Yong Social</h2>
+        <p id="statusDescription" class="text-sm text-mute mt-2">
+          One-time payment to create your profile and access all features.
+        </p>
+        <div id="statusDetails" class="mt-4"></div>
+        <div id="priceInfo" class="text-xs text-mute mt-2 flex items-center justify-center gap-2">
+          <span>Loading price...</span>
+          <button id="refreshPriceBtn" class="text-brand hover:underline text-xs">↻ Refresh</button>
+        </div>
+      </div>
+
+      <!-- Staking Info -->
+      <div class="staking-info rounded-xl p-4 text-sm">
+        <div class="flex items-center gap-2">
+          <span>🔒</span>
+          <span class="font-medium">Your payment will be staked</span>
+        </div>
+        <p class="text-mute text-xs mt-1">
+          All TON payments are pooled and staked through TON validators, generating yield for the Yong Social community.
+        </p>
+      </div>
+
+      <!-- TON Connect Button Container -->
+      <div id="tonConnectContainer"></div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col gap-2">
+        <button id="payBtn" class="btn-brand w-full rounded-xl py-3 font-semibold hidden">
+          Pay <span id="payAmount">0 TON</span>
+        </button>
+        <button id="closePaymentBtn" class="btn-ghost rounded-xl py-2.5 text-sm">Cancel</button>
+      </div>
+
+      <!-- Debug -->
+      <div id="paymentDebug" class="text-xs text-mute text-center hidden"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MAIN APP -->
+<!-- ============================================ -->
 <header class="sticky top-0 z-30 backdrop-blur bg-ink/80 border-b border-line">
   <div class="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between gap-4">
     <a href="https://www.yongsocial.com/" target="_blank" rel="noreferrer" class="flex items-center gap-2.5">
@@ -62,7 +186,6 @@
     <nav id="nav" class="flex items-center gap-1">
       <a href="#/" class="nav-link" data-route="/">Dashboard</a>
       <a href="#/pool" class="nav-link" data-route="/pool">Yong Pool</a>
-      <!-- More dropdown -->
       <div class="relative" id="moreDropdown">
         <button class="nav-link flex items-center gap-1" id="moreBtn">
           More
@@ -84,9 +207,8 @@
 
 <main class="max-w-6xl mx-auto px-5 py-8">
 
-<!-- ===================== DASHBOARD VIEW ===================== -->
+<!-- ===================== DASHBOARD ===================== -->
 <section id="view-dashboard" class="space-y-6">
-
   <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
     <div class="card p-5">
       <div class="text-xs uppercase tracking-wider text-mute">Company Net Worth</div>
@@ -152,7 +274,6 @@
     </div>
   </section>
 
-  <!-- MOST RECENT (RSS) -->
   <section class="card p-5">
     <div class="flex items-center justify-between mb-4">
       <div>
@@ -167,7 +288,7 @@
   </section>
 </section>
 
-<!-- ===================== POOL VIEW ===================== -->
+<!-- ===================== POOL ===================== -->
 <section id="view-pool" class="space-y-6 hidden">
   <div class="card p-6">
     <div class="flex items-start justify-between gap-4 flex-wrap">
@@ -186,8 +307,7 @@
   <div id="pollsList" class="space-y-5"></div>
 </section>
 
-
-<!-- ===================== ANNOUNCEMENTS VIEW ===================== -->
+<!-- ===================== ANNOUNCEMENTS ===================== -->
 <section id="view-announcements" class="space-y-6 hidden">
   <div class="card p-6">
     <div class="text-xs uppercase tracking-wider text-brand">Community</div>
@@ -201,7 +321,7 @@
   </div>
 </section>
 
-<!-- ===================== COURSES VIEW ===================== -->
+<!-- ===================== COURSES ===================== -->
 <section id="view-courses" class="space-y-6 hidden">
   <div class="card p-6">
     <div class="text-xs uppercase tracking-wider text-brand">Education</div>
@@ -215,7 +335,7 @@
   </div>
 </section>
 
-<!-- ===================== EARN YONG STARS VIEW ===================== -->
+<!-- ===================== EARN ===================== -->
 <section id="view-earn" class="space-y-6 hidden">
   <div class="card p-6">
     <div class="text-xs uppercase tracking-wider text-brand">Rewards</div>
@@ -229,12 +349,18 @@
   </div>
 </section>
 
-
+<!-- ===================== PROFILE ===================== -->
 <section id="view-profile" class="space-y-6 hidden">
   <div class="card p-6">
     <div class="text-xs uppercase tracking-wider text-brand">Profile</div>
     <h1 class="text-2xl md:text-3xl font-extrabold mt-1">Your Yong Social profile</h1>
     <p id="profileMode" class="text-sm text-mute mt-1">Loading…</p>
+    <div id="paymentStatusBadge" class="mt-3 hidden">
+      <div class="chip inline-flex items-center gap-2 px-3 py-1.5 text-xs">
+        <span id="paymentStatusDot" class="w-2 h-2 rounded-full"></span>
+        <span id="paymentStatusText">Payment Status</span>
+      </div>
+    </div>
   </div>
 
   <div id="profileLoading" class="card p-6"><div class="skeleton h-24 rounded-xl"></div></div>
@@ -249,7 +375,6 @@
     </div>
   </div>
 
-  <!-- Yong Stars Wallet -->
   <div id="starsWallet" class="card p-6 hidden">
     <div class="flex items-center justify-between mb-5">
       <div>
@@ -350,10 +475,16 @@
 
 </main>
 
+<!-- ============================================ -->
+<!-- JAVASCRIPT - COMPLETE APPLICATION -->
+<!-- ============================================ -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js';
 
+// ============================================
+// FIREBASE CONFIG
+// ============================================
 const firebaseConfig = {
   apiKey: 'AIzaSyB8ZQSUOcHQ54eRxoC2g2IoLIGIzo6r2ME',
   authDomain: 'yong-social.firebaseapp.com',
@@ -365,547 +496,1211 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 
-/* ================ TELEGRAM ================ */
+// ============================================
+// TON PRICE SERVICE - Fetches real-time TON price
+// ============================================
+class TONPriceService {
+    constructor() {
+        this.cachedPrice = null;
+        this.lastFetchTime = 0;
+        this.cacheDuration = TON_CONFIG.PRICE_CACHE_DURATION;
+        this.fallbackPrice = TON_CONFIG.FALLBACK_TON_PRICE;
+        this.isFetching = false;
+    }
+    
+    async getTONPrice(forceRefresh = false) {
+        const now = Date.now();
+        
+        // Return cached price if still valid and not forcing refresh
+        if (!forceRefresh && this.cachedPrice && (now - this.lastFetchTime) < this.cacheDuration) {
+            return this.cachedPrice;
+        }
+        
+        // Prevent multiple simultaneous fetches
+        if (this.isFetching) {
+            // Wait for the current fetch to complete
+            await new Promise(resolve => {
+                const check = () => {
+                    if (!this.isFetching) resolve();
+                    else setTimeout(check, 100);
+                };
+                check();
+            });
+            return this.cachedPrice || this.fallbackPrice;
+        }
+        
+        this.isFetching = true;
+        
+        try {
+            const response = await fetch(
+                'https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd'
+            );
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const price = data['the-open-network']?.usd;
+            
+            if (!price || typeof price !== 'number') {
+                throw new Error('Invalid price data received');
+            }
+            
+            this.cachedPrice = price;
+            this.lastFetchTime = now;
+            console.log(`[TON Price] Updated: $${price.toFixed(4)} USD`);
+            return price;
+            
+        } catch (error) {
+            console.error('[TON Price] Error:', error);
+            
+            if (this.cachedPrice) {
+                console.warn('[TON Price] Using cached price:', this.cachedPrice);
+                return this.cachedPrice;
+            }
+            
+            console.warn('[TON Price] Using fallback price:', this.fallbackPrice);
+            return this.fallbackPrice;
+        } finally {
+            this.isFetching = false;
+        }
+    }
+    
+    async getTONAmountForUSD(usdAmount) {
+        const price = await this.getTONPrice();
+        const tonAmount = usdAmount / price;
+        // Round to 6 decimal places (TON standard)
+        return Math.round(tonAmount * 1e6) / 1e6;
+    }
+}
+
+// ============================================
+// TON PAYMENT SYSTEM
+// ============================================
+class TONPaymentSystem {
+    constructor(config) {
+        this.config = config;
+        this.priceService = new TONPriceService();
+        this.tonConnect = null;
+        this.wallet = null;
+        this.isConnected = false;
+        this.paymentStatus = 'idle';
+        this.paymentTxId = null;
+        this.paymentAmountTON = 0;
+        this.isProcessing = false;
+        
+        // DOM Elements
+        this.overlay = document.getElementById('paymentOverlay');
+        this.statusIcon = document.getElementById('statusIcon');
+        this.statusTitle = document.getElementById('statusTitle');
+        this.statusDescription = document.getElementById('statusDescription');
+        this.statusDetails = document.getElementById('statusDetails');
+        this.payBtn = document.getElementById('payBtn');
+        this.closeBtn = document.getElementById('closePaymentBtn');
+        this.debugEl = document.getElementById('paymentDebug');
+        this.displayAmount = document.getElementById('displayAmount');
+        this.payAmount = document.getElementById('payAmount');
+        this.priceInfo = document.getElementById('priceInfo');
+        this.refreshPriceBtn = document.getElementById('refreshPriceBtn');
+        
+        this.init();
+    }
+    
+    async init() {
+        try {
+            // Update price display
+            await this.updatePriceAndAmount();
+            
+            // Initialize TON Connect
+            await this.initTONConnect();
+            
+            // Check if user already paid
+            const paid = await this.checkPaymentStatus();
+            if (!paid) {
+                // Show payment overlay
+                setTimeout(() => this.showPaymentOverlay(), 500);
+            }
+            
+            // Setup event listeners
+            this.setupEventListeners();
+            
+            console.log('TON Payment System initialized');
+        } catch (error) {
+            console.error('TON Payment init error:', error);
+            this.showDebug('Error: ' + error.message);
+        }
+    }
+    
+    async initTONConnect() {
+        try {
+            // Create TON Connect UI instance
+            this.tonConnect = new TONConnectUI({
+                manifestUrl: this.config.MANIFEST_URL,
+                buttonRootId: 'tonConnectContainer',
+                language: 'en',
+                walletsListConfiguration: {
+                    includeWallets: [
+                        {
+                            name: 'Tonkeeper',
+                            imageUrl: 'https://tonkeeper.com/assets/tonkeeper-icon.png',
+                            aboutUrl: 'https://tonkeeper.com',
+                            bridgeUrl: 'https://bridge.tonkeeper.com/bridge',
+                            universalLink: 'https://app.tonkeeper.com/ton-connect',
+                            deepLink: 'https://app.tonkeeper.com/ton-connect',
+                        },
+                        {
+                            name: 'Telegram Wallet',
+                            imageUrl: 'https://wallet.tg/images/logo-288.png',
+                            aboutUrl: 'https://wallet.tg',
+                            bridgeUrl: 'https://wallet.tg/ton-connect-bridge',
+                            universalLink: 'https://wallet.tg/ton-connect',
+                            deepLink: 'https://wallet.tg/ton-connect',
+                        }
+                    ]
+                }
+            });
+            
+            // Listen for wallet connection status
+            this.tonConnect.onStatusChange((wallet) => {
+                if (wallet) {
+                    this.wallet = wallet;
+                    this.isConnected = true;
+                    this.showPayButton();
+                    this.showDebug('Wallet connected: ' + wallet.account.address);
+                    this.updatePaymentUI('connected', 'Wallet Connected', 'Ready to pay');
+                } else {
+                    this.wallet = null;
+                    this.isConnected = false;
+                    this.hidePayButton();
+                    this.showDebug('Wallet disconnected');
+                    this.updatePaymentUI('idle');
+                }
+            });
+            
+        } catch (error) {
+            console.error('TON Connect init error:', error);
+            throw error;
+        }
+    }
+    
+    async updatePriceAndAmount() {
+        try {
+            // Get TON price and calculate amount
+            const price = await this.priceService.getTONPrice();
+            this.paymentAmountTON = await this.priceService.getTONAmountForUSD(
+                this.config.PAYMENT_AMOUNT_USD
+            );
+            
+            // Update UI
+            if (this.displayAmount) {
+                this.displayAmount.textContent = 
+                    `${this.paymentAmountTON} TON (~$${this.config.PAYMENT_AMOUNT_USD} USD)`;
+            }
+            if (this.payAmount) {
+                this.payAmount.textContent = `${this.paymentAmountTON} TON`;
+            }
+            if (this.priceInfo) {
+                this.priceInfo.innerHTML = `
+                    <span>1 TON = $${price.toFixed(4)} USD</span>
+                    <button id="refreshPriceBtn" class="text-brand hover:underline text-xs ml-2">↻ Refresh</button>
+                `;
+                // Re-bind refresh button
+                document.getElementById('refreshPriceBtn')?.addEventListener('click', () => {
+                    this.updatePriceAndAmount(true);
+                });
+            }
+            
+            // Update description
+            const desc = document.querySelector('#statusDescription');
+            if (desc) {
+                desc.innerHTML = `
+                    One-time payment of <span class="text-brand font-semibold">${this.paymentAmountTON} TON</span> 
+                    (~$${this.config.PAYMENT_AMOUNT_USD} USD) to create your profile.
+                    <br><span class="text-xs text-mute">Current TON price: $${price.toFixed(4)} USD</span>
+                `;
+            }
+            
+            console.log(`[Payment] Amount: ${this.paymentAmountTON} TON ($${this.config.PAYMENT_AMOUNT_USD} USD)`);
+            
+        } catch (error) {
+            console.error('[Payment] Error updating amount:', error);
+            // Use fallback
+            this.paymentAmountTON = 0.4;
+            if (this.displayAmount) {
+                this.displayAmount.textContent = `${this.paymentAmountTON} TON`;
+            }
+        }
+    }
+    
+    async checkPaymentStatus() {
+        try {
+            const userId = this.getUserId();
+            const profileRef = doc(db, 'profiles', userId);
+            const snap = await getDoc(profileRef);
+            
+            if (snap.exists()) {
+                const data = snap.data();
+                if (data.paymentStatus === 'paid' || data.tonPaymentTx) {
+                    this.paymentStatus = 'paid';
+                    this.updatePaymentBadge('paid', '✅ Profile Active');
+                    return true;
+                }
+            }
+            return false;
+        } catch (error) {
+            console.error('Error checking payment:', error);
+            return false;
+        }
+    }
+    
+    getUserId() {
+        const tg = window.Telegram?.WebApp || null;
+        const user = tg?.initDataUnsafe?.user;
+        if (user) return String(user.id);
+        
+        let cached = localStorage.getItem('ys.devTgUser');
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                return String(parsed.id);
+            } catch {}
+        }
+        return 'guest_' + Math.floor(100000 + Math.random() * 900000);
+    }
+    
+    setupEventListeners() {
+        // Pay button
+        this.payBtn.addEventListener('click', () => this.processPayment());
+        
+        // Close button - only allow close if not processing
+        this.closeBtn.addEventListener('click', () => {
+            if (!this.isProcessing) {
+                this.hidePaymentOverlay();
+            }
+        });
+        
+        // Click outside to close - only if not processing
+        this.overlay.addEventListener('click', (e) => {
+            if (e.target === this.overlay && !this.isProcessing) {
+                this.hidePaymentOverlay();
+            }
+        });
+        
+        // Keyboard Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !this.isProcessing) {
+                this.hidePaymentOverlay();
+            }
+        });
+    }
+    
+    showPaymentOverlay() {
+        this.overlay.classList.add('active');
+        this.updatePaymentUI('idle');
+    }
+    
+    hidePaymentOverlay() {
+        if (this.isProcessing) return; // Don't close during processing
+        this.overlay.classList.remove('active');
+    }
+    
+    showPayButton() {
+        this.payBtn.classList.remove('hidden');
+    }
+    
+    hidePayButton() {
+        this.payBtn.classList.add('hidden');
+    }
+    
+    updatePaymentUI(status, title, description) {
+        const icons = {
+            idle: '💎',
+            pending: '⏳',
+            success: '✅',
+            error: '❌',
+            connected: '🔗'
+        };
+        
+        const titles = {
+            idle: 'Pay to Access Yong Social',
+            pending: 'Processing Payment...',
+            success: '🎉 Payment Successful!',
+            error: 'Payment Failed',
+            connected: 'Wallet Connected'
+        };
+        
+        this.statusIcon.textContent = icons[status] || '💎';
+        this.statusTitle.textContent = titles[status] || titles.idle;
+        
+        // Update description based on status
+        if (status === 'pending') {
+            this.statusDescription.innerHTML = `
+                <div class="flex flex-col items-center gap-3">
+                    <div class="spinner"></div>
+                    <p>Waiting for transaction confirmation...</p>
+                    <p class="text-xs text-mute">Please approve the transaction in your wallet</p>
+                </div>
+            `;
+        } else if (status === 'success') {
+            this.statusDescription.innerHTML = `
+                <div class="flex flex-col items-center gap-3">
+                    <p class="text-brand2 font-semibold">Payment Successful!</p>
+                    <p class="text-sm text-mute">Your profile is now active. You can access all features.</p>
+                    ${this.paymentTxId ? `<p class="text-xs text-mute font-mono">TX: ${this.paymentTxId}</p>` : ''}
+                </div>
+            `;
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+                if (this.paymentStatus === 'success') {
+                    this.hidePaymentOverlay();
+                }
+            }, 3000);
+        } else if (status === 'error') {
+            this.statusDescription.innerHTML = `
+                <div class="flex flex-col items-center gap-3">
+                    <p class="text-danger">Payment failed. Please try again.</p>
+                    <button id="retryPaymentBtn" class="btn-brand rounded-xl px-6 py-2 text-sm">
+                        Try Again
+                    </button>
+                </div>
+            `;
+            document.getElementById('retryPaymentBtn')?.addEventListener('click', () => {
+                this.processPayment();
+            });
+        } else if (status === 'connected') {
+            this.statusDescription.innerHTML = `
+                <div class="flex flex-col items-center gap-3">
+                    <p>Your wallet is connected. Ready to pay.</p>
+                    <p class="text-xs text-mute">Amount: ${this.paymentAmountTON} TON (~$${this.config.PAYMENT_AMOUNT_USD} USD)</p>
+                </div>
+            `;
+        } else {
+            this.statusDescription.innerHTML = `
+                <div class="flex flex-col items-center gap-3">
+                    <p>One-time payment of <span class="text-brand font-semibold">${this.paymentAmountTON} TON</span> 
+                    (~$${this.config.PAYMENT_AMOUNT_USD} USD) to create your profile.</p>
+                    <p class="text-xs text-mute">All payments are staked for the community.</p>
+                </div>
+            `;
+        }
+        
+        this.paymentStatus = status;
+        this.updatePaymentBadge(status, titles[status] || '');
+    }
+    
+    updatePaymentBadge(status, text) {
+        const badge = document.getElementById('paymentStatusBadge');
+        const dot = document.getElementById('paymentStatusDot');
+        const label = document.getElementById('paymentStatusText');
+        
+        if (status === 'paid' || status === 'success') {
+            badge.classList.remove('hidden');
+            dot.className = 'w-2 h-2 rounded-full bg-brand2';
+            label.textContent = text || '✅ Profile Active';
+        } else if (status === 'pending') {
+            badge.classList.remove('hidden');
+            dot.className = 'w-2 h-2 rounded-full bg-brand animate-pulse';
+            label.textContent = text || '⏳ Processing';
+        } else if (status === 'error') {
+            badge.classList.remove('hidden');
+            dot.className = 'w-2 h-2 rounded-full bg-danger';
+            label.textContent = text || '❌ Payment Failed';
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+    
+    async processPayment() {
+        if (this.isProcessing) return;
+        
+        // Ensure wallet is connected
+        if (!this.isConnected) {
+            try {
+                await this.tonConnect.connectWallet();
+                if (!this.isConnected) {
+                    this.updatePaymentUI('error', 'Connection Failed', 'Please connect your wallet to continue.');
+                    return;
+                }
+            } catch (error) {
+                console.error('Wallet connection error:', error);
+                this.updatePaymentUI('error', 'Connection Failed', 'Unable to connect wallet. Please try again.');
+                return;
+            }
+        }
+        
+        this.isProcessing = true;
+        this.paymentStatus = 'pending';
+        this.updatePaymentUI('pending');
+        
+        try {
+            // Get fresh price before sending
+            await this.updatePriceAndAmount();
+            
+            // Convert TON amount to nanotons (1 TON = 1,000,000,000 nanoton)
+            const amountNanoton = String(Math.floor(this.paymentAmountTON * 1e9));
+            
+            // Build transaction
+            const transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 600, // 10 minutes
+                messages: [
+                    {
+                        address: this.config.RECEIVER_ADDRESS,
+                        amount: amountNanoton,
+                        payload: this.encodePaymentPayload()
+                    }
+                ]
+            };
+            
+            console.log('[Payment] Sending transaction:', transaction);
+            
+            // Send transaction
+            const result = await this.tonConnect.sendTransaction(transaction);
+            console.log('[Payment] Transaction result:', result);
+            
+            if (result && result.boc) {
+                this.paymentTxId = result.boc.substring(0, 20) + '...';
+                this.paymentStatus = 'success';
+                this.updatePaymentUI('success');
+                
+                // Record payment in Firebase
+                await this.recordPayment(result);
+                
+                // Reload profile to show updated status
+                await loadProfile();
+                renderProfile();
+                
+                // Hide overlay after success
+                setTimeout(() => this.hidePaymentOverlay(), 2000);
+            } else {
+                throw new Error('Transaction failed - no result returned');
+            }
+            
+        } catch (error) {
+            console.error('[Payment] Error:', error);
+            this.paymentStatus = 'error';
+            this.updatePaymentUI('error', 'Payment Failed', error.message || 'An error occurred. Please try again.');
+            this.showDebug('Error: ' + error.message);
+        } finally {
+            this.isProcessing = false;
+        }
+    }
+    
+    encodePaymentPayload() {
+        const userId = this.getUserId();
+        const timestamp = Date.now();
+        const payload = {
+            type: 'ys_profile_payment',
+            userId: userId,
+            timestamp: timestamp,
+            amountUSD: this.config.PAYMENT_AMOUNT_USD,
+            amountTON: this.paymentAmountTON,
+            network: this.config.NETWORK
+        };
+        return btoa(JSON.stringify(payload));
+    }
+    
+    async recordPayment(txResult) {
+        try {
+            const userId = this.getUserId();
+            const profileRef = doc(db, 'profiles', userId);
+            
+            const paymentData = {
+                tonPaymentTx: {
+                    txId: txResult.boc || this.paymentTxId,
+                    amountUSD: this.config.PAYMENT_AMOUNT_USD,
+                    amountTON: this.paymentAmountTON,
+                    timestamp: serverTimestamp(),
+                    status: 'paid',
+                    type: 'profile_access',
+                    network: this.config.NETWORK
+                },
+                paymentStatus: 'paid',
+                paymentDate: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            };
+            
+            await updateDoc(profileRef, paymentData);
+            console.log('[Payment] Recorded in Firebase');
+            
+        } catch (error) {
+            console.error('[Payment] Error recording:', error);
+            this.showDebug('Error recording payment: ' + error.message);
+        }
+    }
+    
+    showDebug(message) {
+        if (this.debugEl) {
+            this.debugEl.classList.remove('hidden');
+            this.debugEl.textContent = message;
+        }
+        console.log('[TON Debug]', message);
+    }
+    
+    async hasUserPaid() {
+        return this.checkPaymentStatus();
+    }
+}
+
+// ============================================
+// TELEGRAM USER
+// ============================================
 const tg = window.Telegram?.WebApp || null;
 try { tg?.ready(); tg?.expand(); } catch {}
-function getTgUser(){
-  const u = tg?.initDataUnsafe?.user;
-  if (u) return { ...u, _source:'telegram' };
-  // Dev fallback for browser testing outside Telegram
-  let cached = null; try { cached = JSON.parse(localStorage.getItem('ys.devTgUser')||'null'); } catch {}
-  if (cached) return { ...cached, _source:'guest' };
-  const id = Math.floor(100000 + Math.random()*900000);
-  const g = { id, first_name:'Guest', username:'guest_'+id };
-  localStorage.setItem('ys.devTgUser', JSON.stringify(g));
-  return { ...g, _source:'guest' };
+
+function getTgUser() {
+    const u = tg?.initDataUnsafe?.user;
+    if (u) return { ...u, _source: 'telegram' };
+    
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem('ys.devTgUser') || 'null'); } catch {}
+    if (cached) return { ...cached, _source: 'guest' };
+    
+    const id = Math.floor(100000 + Math.random() * 900000);
+    const g = { id, first_name: 'Guest', username: 'guest_' + id };
+    localStorage.setItem('ys.devTgUser', JSON.stringify(g));
+    return { ...g, _source: 'guest' };
 }
+
 const TG_USER = getTgUser();
 let PROFILE = null;
+let tonPayment = null;
 
-async function loadProfile(){
-  const ref = doc(db, 'profiles', String(TG_USER.id));
-  const snap = await getDoc(ref);
-  const base = {
-    telegramId: TG_USER.id,
-    username: TG_USER.username || null,
-    firstName: TG_USER.first_name || null,
-    lastName: TG_USER.last_name || null,
-    photoUrl: TG_USER.photo_url || null,
-    languageCode: TG_USER.language_code || null,
-    isPremium: !!TG_USER.is_premium,
-  };
-  if (!snap.exists()){
-    PROFILE = {
-      ...base,
-      displayName: [TG_USER.first_name, TG_USER.last_name].filter(Boolean).join(' ') || TG_USER.username || ('tg_'+TG_USER.id),
-      bio: '',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      lastSeenAt: serverTimestamp(),
+// ============================================
+// PROFILE FUNCTIONS
+// ============================================
+async function loadProfile() {
+    const ref = doc(db, 'profiles', String(TG_USER.id));
+    const snap = await getDoc(ref);
+    const base = {
+        telegramId: TG_USER.id,
+        username: TG_USER.username || null,
+        firstName: TG_USER.first_name || null,
+        lastName: TG_USER.last_name || null,
+        photoUrl: TG_USER.photo_url || null,
+        languageCode: TG_USER.language_code || null,
+        isPremium: !!TG_USER.is_premium,
     };
-    await setDoc(ref, PROFILE);
-  } else {
-    PROFILE = { ...snap.data(), ...base };
-    await updateDoc(ref, { ...base, lastSeenAt: serverTimestamp(), updatedAt: serverTimestamp() });
-  }
-  paintNavAvatar();
-  return PROFILE;
+    
+    if (!snap.exists()) {
+        PROFILE = {
+            ...base,
+            displayName: [TG_USER.first_name, TG_USER.last_name].filter(Boolean).join(' ') || 
+                         TG_USER.username || ('tg_' + TG_USER.id),
+            bio: '',
+            paymentStatus: 'pending',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            lastSeenAt: serverTimestamp(),
+        };
+        await setDoc(ref, PROFILE);
+    } else {
+        PROFILE = { ...snap.data(), ...base };
+        await updateDoc(ref, { ...base, lastSeenAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    }
+    
+    paintNavAvatar();
+    return PROFILE;
 }
-function paintNavAvatar(){
-  const el = document.getElementById('navAvatar'); if(!el||!PROFILE) return;
-  if (PROFILE.photoUrl){
-    el.outerHTML = `<img id="navAvatar" src="${PROFILE.photoUrl}" alt="" class="w-6 h-6 rounded-full object-cover border border-line"/>`;
-  } else {
-    el.textContent = (PROFILE.displayName||PROFILE.firstName||'Y').slice(0,1).toUpperCase();
-  }
+
+function paintNavAvatar() {
+    const el = document.getElementById('navAvatar');
+    if (!el || !PROFILE) return;
+    if (PROFILE.photoUrl) {
+        el.outerHTML = `<img id="navAvatar" src="${PROFILE.photoUrl}" alt="" class="w-6 h-6 rounded-full object-cover border border-line"/>`;
+    } else {
+        el.textContent = (PROFILE.displayName || PROFILE.firstName || 'Y').slice(0, 1).toUpperCase();
+    }
 }
-function renderProfile(){
-  const modeEl = document.getElementById('profileMode');
-  modeEl.textContent = TG_USER._source==='telegram'
-    ? 'Signed in automatically via Telegram.'
-    : 'Running outside Telegram — using a local guest profile for preview.';
-  if (!PROFILE){ return; }
-  document.getElementById('profileLoading').classList.add('hidden');
-  document.getElementById('profileCard').classList.remove('hidden');
-  document.getElementById('profileForm').classList.remove('hidden');
-  document.getElementById('starsWallet').classList.remove('hidden');
-  const avatar = document.getElementById('profileAvatar');
-  if (PROFILE.photoUrl){ avatar.outerHTML = `<img id="profileAvatar" src="${PROFILE.photoUrl}" alt="" class="w-20 h-20 rounded-2xl object-cover border border-line"/>`; }
-  else { avatar.textContent = (PROFILE.displayName||PROFILE.firstName||'Y').slice(0,1).toUpperCase(); }
-  document.getElementById('profileName').textContent = PROFILE.displayName || '—';
-  document.getElementById('profileHandle').innerHTML = (PROFILE.username?('@'+PROFILE.username):('tg_'+PROFILE.telegramId)) + (PROFILE.isPremium?' <span class="chip ml-1 px-2 py-0.5 text-[10px] text-brand">Premium</span>':'');
-  document.getElementById('profileId').textContent = 'Telegram ID: ' + PROFILE.telegramId;
-  const dn = document.getElementById('inpDisplayName'); dn.value = PROFILE.displayName || '';
-  const bio = document.getElementById('inpBio'); bio.value = PROFILE.bio || '';
-  document.getElementById('bioCount').textContent = (PROFILE.bio||'').length;
-  bio.oninput = ()=> document.getElementById('bioCount').textContent = bio.value.length;
-  document.getElementById('btnSaveProfile').onclick = async ()=>{
-    const btn = document.getElementById('btnSaveProfile');
-    btn.disabled = true; btn.textContent = 'Saving…';
-    try{
-      await updateDoc(doc(db,'profiles',String(PROFILE.telegramId)), { displayName: dn.value.trim(), bio: bio.value, updatedAt: serverTimestamp() });
-      PROFILE.displayName = dn.value.trim(); PROFILE.bio = bio.value;
-      paintNavAvatar();
-      document.getElementById('saveStatus').textContent = 'Saved ' + new Date().toLocaleTimeString();
-    } catch(e){ document.getElementById('saveStatus').innerHTML = '<span class="text-danger">'+e.message+'</span>'; }
-    finally { btn.disabled = false; btn.textContent = 'Save profile'; }
-  };
 
-  // Yong Stars wallet
-  const starsBalance = PROFILE.starsBalance || 0;
-  document.getElementById('starsBalance').textContent = starsBalance.toLocaleString();
-  document.getElementById('convertBalance').textContent = starsBalance.toLocaleString() + ' YS';
-  document.getElementById('convertValue').textContent = '$' + (starsBalance * 0.001).toFixed(2) + ' USDT';
-
-  // Buy modal
-  const buyModal = document.getElementById('buyModal');
-  document.getElementById('btnBuyStars').onclick = () => buyModal.classList.remove('hidden');
-  document.getElementById('closeBuyModal').onclick = () => buyModal.classList.add('hidden');
-  buyModal.addEventListener('click', e => { if (e.target === buyModal) buyModal.classList.add('hidden'); });
-  document.querySelectorAll('.star-pkg').forEach(btn => {
-    btn.onclick = () => {
-      const stars = btn.dataset.stars;
-      const price = btn.dataset.price;
-      // Show toast-style feedback
-      btn.classList.add('border-brand');
-      const orig = btn.querySelector('.text-xs.font-semibold').textContent;
-      btn.querySelector('.text-xs.font-semibold').textContent = 'Interest noted!';
-      setTimeout(() => { btn.classList.remove('border-brand'); btn.querySelector('.text-xs.font-semibold').textContent = orig; }, 1500);
+function renderProfile() {
+    const modeEl = document.getElementById('profileMode');
+    modeEl.textContent = TG_USER._source === 'telegram'
+        ? 'Signed in automatically via Telegram.'
+        : 'Running outside Telegram — using a local guest profile for preview.';
+    
+    if (!PROFILE) return;
+    
+    document.getElementById('profileLoading').classList.add('hidden');
+    document.getElementById('profileCard').classList.remove('hidden');
+    document.getElementById('profileForm').classList.remove('hidden');
+    document.getElementById('starsWallet').classList.remove('hidden');
+    
+    const avatar = document.getElementById('profileAvatar');
+    if (PROFILE.photoUrl) {
+        avatar.outerHTML = `<img id="profileAvatar" src="${PROFILE.photoUrl}" alt="" class="w-20 h-20 rounded-2xl object-cover border border-line"/>`;
+    } else {
+        avatar.textContent = (PROFILE.displayName || PROFILE.firstName || 'Y').slice(0, 1).toUpperCase();
+    }
+    
+    document.getElementById('profileName').textContent = PROFILE.displayName || '—';
+    document.getElementById('profileHandle').innerHTML = 
+        (PROFILE.username ? '@' + PROFILE.username : 'tg_' + PROFILE.telegramId) +
+        (PROFILE.isPremium ? ' <span class="chip ml-1 px-2 py-0.5 text-[10px] text-brand">Premium</span>' : '');
+    document.getElementById('profileId').textContent = 'Telegram ID: ' + PROFILE.telegramId;
+    
+    const dn = document.getElementById('inpDisplayName');
+    dn.value = PROFILE.displayName || '';
+    const bio = document.getElementById('inpBio');
+    bio.value = PROFILE.bio || '';
+    document.getElementById('bioCount').textContent = (PROFILE.bio || '').length;
+    bio.oninput = () => document.getElementById('bioCount').textContent = bio.value.length;
+    
+    document.getElementById('btnSaveProfile').onclick = async () => {
+        const btn = document.getElementById('btnSaveProfile');
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        try {
+            await updateDoc(doc(db, 'profiles', String(PROFILE.telegramId)), {
+                displayName: dn.value.trim(),
+                bio: bio.value,
+                updatedAt: serverTimestamp()
+            });
+            PROFILE.displayName = dn.value.trim();
+            PROFILE.bio = bio.value;
+            paintNavAvatar();
+            document.getElementById('saveStatus').textContent = 'Saved ' + new Date().toLocaleTimeString();
+        } catch (e) {
+            document.getElementById('saveStatus').innerHTML = '<span class="text-danger">' + e.message + '</span>';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Save profile';
+        }
     };
-  });
 
-  // Convert modal
-  const convertModal = document.getElementById('convertModal');
-  document.getElementById('btnConvertStars').onclick = () => convertModal.classList.remove('hidden');
-  document.getElementById('closeConvertModal').onclick = () => convertModal.classList.add('hidden');
-  convertModal.addEventListener('click', e => { if (e.target === convertModal) convertModal.classList.add('hidden'); });
+    // Yong Stars wallet
+    const starsBalance = PROFILE.starsBalance || 0;
+    document.getElementById('starsBalance').textContent = starsBalance.toLocaleString();
+    document.getElementById('convertBalance').textContent = starsBalance.toLocaleString() + ' YS';
+    document.getElementById('convertValue').textContent = '$' + (starsBalance * 0.001).toFixed(2) + ' USDT';
+
+    // Buy modal
+    const buyModal = document.getElementById('buyModal');
+    document.getElementById('btnBuyStars').onclick = () => buyModal.classList.remove('hidden');
+    document.getElementById('closeBuyModal').onclick = () => buyModal.classList.add('hidden');
+    buyModal.addEventListener('click', e => { if (e.target === buyModal) buyModal.classList.add('hidden'); });
+    document.querySelectorAll('.star-pkg').forEach(btn => {
+        btn.onclick = () => {
+            const stars = btn.dataset.stars;
+            const price = btn.dataset.price;
+            btn.classList.add('border-brand');
+            const orig = btn.querySelector('.text-xs.font-semibold').textContent;
+            btn.querySelector('.text-xs.font-semibold').textContent = 'Interest noted!';
+            setTimeout(() => {
+                btn.classList.remove('border-brand');
+                btn.querySelector('.text-xs.font-semibold').textContent = orig;
+            }, 1500);
+        };
+    });
+
+    // Convert modal
+    const convertModal = document.getElementById('convertModal');
+    document.getElementById('btnConvertStars').onclick = () => convertModal.classList.remove('hidden');
+    document.getElementById('closeConvertModal').onclick = () => convertModal.classList.add('hidden');
+    convertModal.addEventListener('click', e => { if (e.target === convertModal) convertModal.classList.add('hidden'); });
 }
 
-/* ================ CONFIG ================ */
+// ============================================
+// CONFIG
+// ============================================
 const CONFIG = {
-  company: { name:"Yong Social", site:"https://www.yongsocial.com/" },
-  rssFeed: "https://www.yongsocial.com/feeds/posts/default?alt=rss",
-  baseNetWorthUSD: 4_200_000,
-  cryptoHoldings: [
-    { id:"bitcoin",  symbol:"BTC",  amount:2.5 },
-    { id:"ethereum", symbol:"ETH",  amount:40 },
-    { id:"solana",   symbol:"SOL",  amount:1200 },
-    { id:"usd-coin", symbol:"USDC", amount:250000 },
-    { id:"ripple",   symbol:"XRP",  amount:50000 },
-  ],
-  socials: [
-    { name:"X (Twitter)", handle:"@yongsocial", url:"https://x.com/yongsocial",       count:12400, icon:"x" },
-    { name:"Facebook",    handle:"yongsocial",  url:"https://facebook.com/yongsocial", count:8900,  icon:"fb" },
-    { name:"LinkedIn",    handle:"yongsocial",  url:"https://linkedin.com/company/yongsocial", count:3100, icon:"li" },
-    { name:"YouTube",     handle:"@yongsocial", url:"https://youtube.com/@yongsocial", count:5200,  icon:"yt" },
-    { name:"GitHub",      handle:"yongsocial",  url:"https://github.com/yongsocial",   count:null,  icon:"gh", live:true },
-  ],
+    company: { name: "Yong Social", site: "https://www.yongsocial.com/" },
+    rssFeed: "https://www.yongsocial.com/feeds/posts/default?alt=rss",
+    baseNetWorthUSD: 4_200_000,
+    cryptoHoldings: [
+        { id: "bitcoin", symbol: "BTC", amount: 2.5 },
+        { id: "ethereum", symbol: "ETH", amount: 40 },
+        { id: "solana", symbol: "SOL", amount: 1200 },
+        { id: "usd-coin", symbol: "USDC", amount: 250000 },
+        { id: "ripple", symbol: "XRP", amount: 50000 },
+    ],
+    socials: [
+        { name: "X (Twitter)", handle: "@yongsocial", url: "https://x.com/yongsocial", count: 12400, icon: "x" },
+        { name: "Facebook", handle: "yongsocial", url: "https://facebook.com/yongsocial", count: 8900, icon: "fb" },
+        { name: "LinkedIn", handle: "yongsocial", url: "https://linkedin.com/company/yongsocial", count: 3100, icon: "li" },
+        { name: "YouTube", handle: "@yongsocial", url: "https://youtube.com/@yongsocial", count: 5200, icon: "yt" },
+        { name: "GitHub", handle: "yongsocial", url: "https://github.com/yongsocial", count: null, icon: "gh", live: true },
+    ],
 };
 
-/* ================ POLLS CONFIG ================ */
+// ============================================
+// POLLS
+// ============================================
 const NOW = Date.now();
-const DAYS = d => d*86400000;
+const DAYS = d => d * 86400000;
 const POLLS = [
-  {
-    id:"p-btc-100k",
-    question:"Will Bitcoin close above $100,000 by year end?",
-    description:"Community sentiment on BTC year-end performance.",
-    publishedAt: NOW - DAYS(2),
-    endsAt:      NOW + DAYS(5),
-    options:[
-      { id:"yes", label:"Yes — above $100k", baseline:1284 },
-      { id:"no",  label:"No — below $100k",  baseline:742 },
-    ],
-  },
-  {
-    id:"p-best-2026",
-    question:"Best performing asset class in 2026?",
-    description:"Where do you expect the strongest returns this year?",
-    publishedAt: NOW - DAYS(10),
-    endsAt:      NOW + DAYS(12),
-    options:[
-      { id:"crypto",   label:"Crypto",            baseline:982 },
-      { id:"stocks",   label:"Equities (S&P 500)",baseline:617 },
-      { id:"gold",     label:"Gold & metals",     baseline:341 },
-      { id:"realestate",label:"Real estate",      baseline:228 },
-    ],
-  },
-  {
-    id:"p-eth-flip",
-    question:"Will ETH flip BTC by market cap this cycle?",
-    description:"The classic flippening debate — closed poll.",
-    publishedAt: NOW - DAYS(30),
-    endsAt:      NOW - DAYS(2),
-    options:[
-      { id:"yes", label:"Yes",   baseline:412 },
-      { id:"no",  label:"No",    baseline:1690 },
-      { id:"unsure", label:"Unsure", baseline:233 },
-    ],
-  },
+    {
+        id: "p-btc-100k",
+        question: "Will Bitcoin close above $100,000 by year end?",
+        description: "Community sentiment on BTC year-end performance.",
+        publishedAt: NOW - DAYS(2),
+        endsAt: NOW + DAYS(5),
+        options: [
+            { id: "yes", label: "Yes — above $100k", baseline: 1284 },
+            { id: "no", label: "No — below $100k", baseline: 742 },
+        ],
+    },
+    {
+        id: "p-best-2026",
+        question: "Best performing asset class in 2026?",
+        description: "Where do you expect the strongest returns this year?",
+        publishedAt: NOW - DAYS(10),
+        endsAt: NOW + DAYS(12),
+        options: [
+            { id: "crypto", label: "Crypto", baseline: 982 },
+            { id: "stocks", label: "Equities (S&P 500)", baseline: 617 },
+            { id: "gold", label: "Gold & metals", baseline: 341 },
+            { id: "realestate", label: "Real estate", baseline: 228 },
+        ],
+    },
+    {
+        id: "p-eth-flip",
+        question: "Will ETH flip BTC by market cap this cycle?",
+        description: "The classic flippening debate — closed poll.",
+        publishedAt: NOW - DAYS(30),
+        endsAt: NOW - DAYS(2),
+        options: [
+            { id: "yes", label: "Yes", baseline: 412 },
+            { id: "no", label: "No", baseline: 1690 },
+            { id: "unsure", label: "Unsure", baseline: 233 },
+        ],
+    },
 ];
 
-/* ================ HELPERS ================ */
-const $ = (s,p=document)=>p.querySelector(s);
-const $$ = (s,p=document)=>[...p.querySelectorAll(s)];
+// ============================================
+// HELPERS
+// ============================================
+const $ = (s, p = document) => p.querySelector(s);
+const $$ = (s, p = document) => [...p.querySelectorAll(s)];
 const fmt = {
-  usd:n=>"$"+(n??0).toLocaleString(undefined,{maximumFractionDigits:0}),
-  usdF:n=>"$"+(n??0).toLocaleString(undefined,{maximumFractionDigits:2}),
-  num:n=>(n??0).toLocaleString(),
-  abbrev:n=>{ if(n==null)return"—"; const a=Math.abs(n);
-    if(a>=1e9)return(n/1e9).toFixed(1)+"B";
-    if(a>=1e6)return(n/1e6).toFixed(1)+"M";
-    if(a>=1e3)return(n/1e3).toFixed(1)+"K";
-    return ""+n; },
-  pct:n=>(n>=0?"+":"")+(n??0).toFixed(2)+"%",
-  date:ts=>new Date(ts).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}),
-  dateTime:ts=>new Date(ts).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}),
+    usd: n => "$" + (n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 }),
+    usdF: n => "$" + (n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 }),
+    num: n => (n ?? 0).toLocaleString(),
+    abbrev: n => {
+        if (n == null) return "—";
+        const a = Math.abs(n);
+        if (a >= 1e9) return (n / 1e9).toFixed(1) + "B";
+        if (a >= 1e6) return (n / 1e6).toFixed(1) + "M";
+        if (a >= 1e3) return (n / 1e3).toFixed(1) + "K";
+        return "" + n;
+    },
+    pct: n => (n >= 0 ? "+" : "") + (n ?? 0).toFixed(2) + "%",
+    date: ts => new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+    dateTime: ts => new Date(ts).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
 };
 const store = {
-  get:k=>{ try{return JSON.parse(localStorage.getItem(k));}catch{return null;} },
-  set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)),
+    get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+    set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
 };
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
-/* ================ DROPDOWN ================ */
+// ============================================
+// DROPDOWN
+// ============================================
 const moreBtn = document.getElementById("moreBtn");
 const moreMenu = document.getElementById("moreMenu");
-moreBtn.addEventListener("click", function(e){
-  e.stopPropagation();
-  moreMenu.classList.toggle("hidden");
+moreBtn.addEventListener("click", function(e) {
+    e.stopPropagation();
+    moreMenu.classList.toggle("hidden");
 });
-document.addEventListener("click", function(e){
-  if (!moreBtn.contains(e.target) && !moreMenu.contains(e.target)) {
-    moreMenu.classList.add("hidden");
-  }
+document.addEventListener("click", function(e) {
+    if (!moreBtn.contains(e.target) && !moreMenu.contains(e.target)) {
+        moreMenu.classList.add("hidden");
+    }
 });
 document.querySelectorAll("#moreMenu a").forEach(link => {
-  link.addEventListener("click", () => moreMenu.classList.add("hidden"));
+    link.addEventListener("click", () => moreMenu.classList.add("hidden"));
 });
 
-/* ================ ROUTER ================ */
-const MORE_ROUTES=["/announcements","/courses","/earn"];
-function route(){
-  const hash = location.hash.replace(/^#/,"") || "/";
-  const isPool = hash.startsWith("/pool");
-  const isProfile = hash.startsWith("/profile");
-  const isAnnouncements = hash.startsWith("/announcements");
-  const isCourses = hash.startsWith("/courses");
-  const isEarn = hash.startsWith("/earn");
-  const isMore = isAnnouncements||isCourses||isEarn;
-  $("#view-dashboard").classList.toggle("hidden", isPool||isProfile||isMore);
-  $("#view-pool").classList.toggle("hidden", !isPool);
-  $("#view-profile").classList.toggle("hidden", !isProfile);
-  $("#view-announcements").classList.toggle("hidden", !isAnnouncements);
-  $("#view-courses").classList.toggle("hidden", !isCourses);
-  $("#view-earn").classList.toggle("hidden", !isEarn);
-  const current = isProfile?"/profile":isPool?"/pool":isMore?hash.replace(/^\//,"").split("/")[0]&&"/"+hash.replace(/^\//,"").split("/")[0]:"/";
-  $$("#nav .nav-link").forEach(a=>a.classList.toggle("active", a.dataset.route===current));
-  // highlight More button when a sub-route is active
-  document.getElementById("moreBtn")?.classList.toggle("active", isMore);
-  document.getElementById("moreMenu")?.classList.add("hidden");
-  if (isPool) renderPolls();
-  if (isProfile) renderProfile();
-  window.scrollTo({top:0,behavior:"instant"});
+// ============================================
+// ROUTER
+// ============================================
+function route() {
+    const hash = location.hash.replace(/^#/, "") || "/";
+    const isPool = hash.startsWith("/pool");
+    const isProfile = hash.startsWith("/profile");
+    const isAnnouncements = hash.startsWith("/announcements");
+    const isCourses = hash.startsWith("/courses");
+    const isEarn = hash.startsWith("/earn");
+    const isMore = isAnnouncements || isCourses || isEarn;
+    
+    $("#view-dashboard").classList.toggle("hidden", isPool || isProfile || isMore);
+    $("#view-pool").classList.toggle("hidden", !isPool);
+    $("#view-profile").classList.toggle("hidden", !isProfile);
+    $("#view-announcements").classList.toggle("hidden", !isAnnouncements);
+    $("#view-courses").classList.toggle("hidden", !isCourses);
+    $("#view-earn").classList.toggle("hidden", !isEarn);
+    
+    const current = isProfile ? "/profile" : isPool ? "/pool" : isMore ? "/" + hash.replace(/^\//, "").split("/")[0] : "/";
+    $$("#nav .nav-link").forEach(a => a.classList.toggle("active", a.dataset.route === current));
+    document.getElementById("moreBtn")?.classList.toggle("active", isMore);
+    document.getElementById("moreMenu")?.classList.add("hidden");
+    
+    if (isPool) renderPolls();
+    if (isProfile) renderProfile();
+    window.scrollTo({ top: 0, behavior: "instant" });
 }
 window.addEventListener("hashchange", route);
 
-/* ================ CHART ================ */
-function seededRand(seed){ let s=seed; return ()=>(s=(s*9301+49297)%233280)/233280; }
-function getViewsData(){
-  const today=new Date().toISOString().slice(0,10);
-  let cached=store.get("ys.views");
-  if(cached?.day===today) return cached;
-  const rng=seededRand([...today].reduce((a,c)=>a+c.charCodeAt(0),0));
-  const hours=Array.from({length:24},(_,i)=>{
-    const base=200+350*Math.sin((i-4)/24*Math.PI);
-    return Math.max(40,Math.round(base+rng()*180-60));
-  });
-  const prev=Math.round(hours.reduce((a,b)=>a+b,0)*(0.85+rng()*0.3));
-  const out={day:today,hours,prev}; store.set("ys.views",out); return out;
+// ============================================
+// CHART
+// ============================================
+function seededRand(seed) { let s = seed; return () => (s = (s * 9301 + 49297) % 233280) / 233280; }
+function getViewsData() {
+    const today = new Date().toISOString().slice(0, 10);
+    let cached = store.get("ys.views");
+    if (cached?.day === today) return cached;
+    const rng = seededRand([...today].reduce((a, c) => a + c.charCodeAt(0), 0));
+    const hours = Array.from({ length: 24 }, (_, i) => {
+        const base = 200 + 350 * Math.sin((i - 4) / 24 * Math.PI);
+        return Math.max(40, Math.round(base + rng() * 180 - 60));
+    });
+    const prev = Math.round(hours.reduce((a, b) => a + b, 0) * (0.85 + rng() * 0.3));
+    const out = { day: today, hours, prev };
+    store.set("ys.views", out);
+    return out;
 }
-function renderChart(){
-  const v=getViewsData(); const total=v.hours.reduce((a,b)=>a+b,0);
-  const delta=((total-v.prev)/v.prev)*100;
-  $("#viewsTotal").textContent=fmt.num(total);
-  $("#viewsDelta").innerHTML=`<span class="${delta>=0?'text-brand2':'text-danger'}">${fmt.pct(delta)}</span> vs previous day`;
-  const ctx=$("#viewsChart").getContext("2d");
-  const grad=ctx.createLinearGradient(0,0,0,240);
-  grad.addColorStop(0,"rgba(212,178,90,.35)"); grad.addColorStop(1,"rgba(212,178,90,0)");
-  const now=new Date(); now.setMinutes(0,0,0);
-  const labels=Array.from({length:24},(_,i)=>{
-    const d=new Date(now.getTime()-(23-i)*3600000);
-    return d.getHours().toString().padStart(2,"0")+":00";
-  });
-  new Chart(ctx,{type:"line",data:{labels,datasets:[{data:v.hours,borderColor:"#d4b25a",backgroundColor:grad,borderWidth:2,fill:true,tension:.4,pointRadius:0,pointHoverRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{mode:"index",intersect:false,backgroundColor:"#0b1120",borderColor:"#1f2940",borderWidth:1,titleColor:"#e7ecf5",bodyColor:"#e7ecf5"}},
-      scales:{x:{grid:{display:false},ticks:{color:"#8a93a8",maxRotation:0,autoSkipPadding:18}},
-              y:{grid:{color:"#1f294055"},ticks:{color:"#8a93a8",callback:v=>fmt.abbrev(v)},beginAtZero:true}}}});
+function renderChart() {
+    const v = getViewsData();
+    const total = v.hours.reduce((a, b) => a + b, 0);
+    const delta = ((total - v.prev) / v.prev) * 100;
+    $("#viewsTotal").textContent = fmt.num(total);
+    $("#viewsDelta").innerHTML = `<span class="${delta >= 0 ? 'text-brand2' : 'text-danger'}">${fmt.pct(delta)}</span> vs previous day`;
+    const ctx = $("#viewsChart").getContext("2d");
+    const grad = ctx.createLinearGradient(0, 0, 0, 240);
+    grad.addColorStop(0, "rgba(212,178,90,.35)");
+    grad.addColorStop(1, "rgba(212,178,90,0)");
+    const now = new Date();
+    now.setMinutes(0, 0, 0);
+    const labels = Array.from({ length: 24 }, (_, i) => {
+        const d = new Date(now.getTime() - (23 - i) * 3600000);
+        return d.getHours().toString().padStart(2, "0") + ":00";
+    });
+    new Chart(ctx, {
+        type: "line",
+        data: { labels, datasets: [{ data: v.hours, borderColor: "#d4b25a", backgroundColor: grad, borderWidth: 2, fill: true, tension: .4, pointRadius: 0, pointHoverRadius: 4 }] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { mode: "index", intersect: false, backgroundColor: "#0b1120", borderColor: "#1f2940", borderWidth: 1, titleColor: "#e7ecf5", bodyColor: "#e7ecf5" } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: "#8a93a8", maxRotation: 0, autoSkipPadding: 18 } },
+                y: { grid: { color: "#1f294055" }, ticks: { color: "#8a93a8", callback: v => fmt.abbrev(v) }, beginAtZero: true }
+            }
+        }
+    });
 }
 
-/* ================ SOCIALS ================ */
+// ============================================
+// SOCIALS
+// ============================================
 const ICONS = {
-  x:'<svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M17.5 3h3.2l-7 8 8.2 10h-6.4l-5-6.4L4.8 21H1.6l7.5-8.6L1.2 3h6.6l4.5 5.9L17.5 3Zm-1.1 16h1.8L7.7 5H5.8l10.6 14Z"/></svg>',
-  fb:'<svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M13.5 22v-8h2.7l.4-3.2h-3.1V8.7c0-.9.3-1.6 1.6-1.6h1.6V4.2C16.4 4.1 15.4 4 14.3 4c-2.3 0-3.8 1.4-3.8 3.9v2.9H8v3.2h2.5V22h3Z"/></svg>',
-  li:'<svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M6.94 8.5H3.56V21h3.38V8.5ZM5.25 3a1.94 1.94 0 1 0 0 3.88 1.94 1.94 0 0 0 0-3.88ZM21 21h-3.36v-6.1c0-1.46-.03-3.34-2.03-3.34-2.03 0-2.34 1.59-2.34 3.23V21H9.92V8.5h3.22v1.7h.05c.45-.85 1.55-1.74 3.19-1.74 3.41 0 4.04 2.25 4.04 5.17V21Z"/></svg>',
-  yt:'<svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M23 7.2s-.2-1.6-.9-2.3c-.8-.9-1.7-.9-2.2-1C16.6 3.5 12 3.5 12 3.5s-4.6 0-7.9.4c-.5.1-1.4.1-2.2 1C1.2 5.6 1 7.2 1 7.2S.8 9.1.8 11v1.9c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.8.9 1.9.9 2.4 1 1.7.2 7.7.4 7.7.4s4.6 0 7.9-.4c.5-.1 1.4-.1 2.2-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V11c0-1.9-.2-3.8-.2-3.8ZM9.9 14.7V8.3l6 3.2-6 3.2Z"/></svg>',
-  gh:'<svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M12 .5C5.7.5.7 5.6.7 11.9c0 5.1 3.3 9.3 7.8 10.8.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.4-1.3-5.4-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.6.2 2.8.1 3.1.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.4 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.5-1.5 7.8-5.7 7.8-10.8C23.3 5.6 18.3.5 12 .5Z"/></svg>',
+    x: '<svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M17.5 3h3.2l-7 8 8.2 10h-6.4l-5-6.4L4.8 21H1.6l7.5-8.6L1.2 3h6.6l4.5 5.9L17.5 3Zm-1.1 16h1.8L7.7 5H5.8l10.6 14Z"/></svg>',
+    fb: '<svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M13.5 22v-8h2.7l.4-3.2h-3.1V8.7c0-.9.3-1.6 1.6-1.6h1.6V4.2C16.4 4.1 15.4 4 14.3 4c-2.3 0-3.8 1.4-3.8 3.9v2.9H8v3.2h2.5V22h3Z"/></svg>',
+    li: '<svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M6.94 8.5H3.56V21h3.38V8.5ZM5.25 3a1.94 1.94 0 1 0 0 3.88 1.94 1.94 0 0 0 0-3.88ZM21 21h-3.36v-6.1c0-1.46-.03-3.34-2.03-3.34-2.03 0-2.34 1.59-2.34 3.23V21H9.92V8.5h3.22v1.7h.05c.45-.85 1.55-1.74 3.19-1.74 3.41 0 4.04 2.25 4.04 5.17V21Z"/></svg>',
+    yt: '<svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M23 7.2s-.2-1.6-.9-2.3c-.8-.9-1.7-.9-2.2-1C16.6 3.5 12 3.5 12 3.5s-4.6 0-7.9.4c-.5.1-1.4.1-2.2 1C1.2 5.6 1 7.2 1 7.2S.8 9.1.8 11v1.9c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.8.9 1.9.9 2.4 1 1.7.2 7.7.4 7.7.4s4.6 0 7.9-.4c.5-.1 1.4-.1 2.2-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V11c0-1.9-.2-3.8-.2-3.8ZM9.9 14.7V8.3l6 3.2-6 3.2Z"/></svg>',
+    gh: '<svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M12 .5C5.7.5.7 5.6.7 11.9c0 5.1 3.3 9.3 7.8 10.8.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.4-1.3-5.4-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.6.2 2.8.1 3.1.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.4 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.5-1.5 7.8-5.7 7.8-10.8C23.3 5.6 18.3.5 12 .5Z"/></svg>',
 };
-async function loadSocials(){
-  const list=$("#socialList");
-  list.innerHTML=CONFIG.socials.map((s,i)=>`
-    <li id="soc-${i}" class="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface2 transition">
-      <a href="${s.url}" target="_blank" rel="noreferrer" class="flex items-center gap-3 min-w-0">
-        <span class="w-8 h-8 grid place-items-center rounded-lg bg-surface2 border border-line text-brand">${ICONS[s.icon]||""}</span>
-        <span class="min-w-0">
-          <span class="block text-sm font-medium truncate">${s.name}</span>
-          <span class="block text-xs text-mute truncate">${s.handle}</span>
-        </span>
-      </a>
-      <span class="text-sm font-semibold" data-count>${s.count==null?'<span class="skeleton inline-block w-10 h-3 rounded"></span>':fmt.abbrev(s.count)}</span>
-    </li>`).join("");
-  const ghIdx=CONFIG.socials.findIndex(s=>s.icon==="gh"&&s.live);
-  if(ghIdx>=0){
-    const gh=CONFIG.socials[ghIdx];
-    try{
-      let r=await fetch(`https://api.github.com/users/${gh.handle}`);
-      if(!r.ok) r=await fetch(`https://api.github.com/orgs/${gh.handle}`);
-      const j=await r.json(); gh.count=j.followers??0;
-    }catch{ gh.count=gh.count??0; }
-    const el=$(`#soc-${ghIdx} [data-count]`); if(el) el.textContent=fmt.abbrev(gh.count);
-  }
-  $("#followersTotal").textContent=fmt.abbrev(CONFIG.socials.reduce((a,s)=>a+(s.count||0),0));
-}
-
-/* ================ CRYPTO ================ */
-async function loadCrypto(){
-  const ids=CONFIG.cryptoHoldings.map(c=>c.id).join(",");
-  const body=$("#cryptoBody");
-  body.innerHTML=CONFIG.cryptoHoldings.map(c=>`
-    <tr data-sym="${c.symbol}">
-      <td class="py-3"><span class="font-semibold">${c.symbol}</span> <span class="text-mute text-xs">${c.id}</span></td>
-      <td class="py-3">${fmt.num(c.amount)}</td>
-      <td class="py-3"><span class="skeleton inline-block w-16 h-3 rounded"></span></td>
-      <td class="py-3 text-mute">—</td>
-      <td class="py-3 text-right text-mute">—</td>
-    </tr>`).join("");
-  let prices={};
-  try{
-    const r=await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
-    prices=await r.json(); store.set("ys.prices",prices);
-  }catch{ prices=store.get("ys.prices")||{}; }
-  let cryptoTotal=0;
-  CONFIG.cryptoHoldings.forEach(c=>{
-    const p=prices[c.id]?.usd??0, ch=prices[c.id]?.usd_24h_change??0, val=p*c.amount;
-    cryptoTotal+=val;
-    const row=body.querySelector(`tr[data-sym="${c.symbol}"]`);
-    if(row) row.innerHTML=`
-      <td class="py-3"><span class="font-semibold">${c.symbol}</span> <span class="text-mute text-xs">${c.id}</span></td>
-      <td class="py-3">${fmt.num(c.amount)}</td>
-      <td class="py-3">${p?fmt.usdF(p):"—"}</td>
-      <td class="py-3 ${ch>=0?'text-brand2':'text-danger'}">${fmt.pct(ch)}</td>
-      <td class="py-3 text-right font-medium">${fmt.usd(val)}</td>`;
-  });
-  $("#cryptoTotal").textContent=fmt.usd(cryptoTotal);
-  const net=CONFIG.baseNetWorthUSD+cryptoTotal;
-  $("#netWorth").textContent=fmt.usd(net);
-  $("#netWorthDelta").innerHTML=`Base ${fmt.usd(CONFIG.baseNetWorthUSD)} + crypto <span class="text-brand">${fmt.usd(cryptoTotal)}</span>`;
-}
-
-/* ================ MOST RECENT (RSS) ================ */
-async function loadRecent(){
-  const wrap=$("#recentArticle");
-  try{
-    const proxy=`https://corsproxy.io/?url=${encodeURIComponent(CONFIG.rssFeed)}`;
-    const r=await fetch(proxy); if(!r.ok) throw new Error("feed fetch failed");
-    const text=await r.text();
-    const xml=new DOMParser().parseFromString(text,"text/xml");
-    const entry=xml.querySelector("item"); if(!entry) throw new Error("no items");
-    const get=tag=>entry.querySelector(tag)?.textContent?.trim()||"";
-    const item={
-      title: get("title"),
-      link:  get("link"),
-      pubDate: get("pubDate"),
-      author: get("author")||get("dc\\:creator")||"",
-      description: get("description")||get("content\\:encoded")||"",
-      content: get("content\\:encoded")||get("description")||"",
-    };
-    if(!item.title) throw new Error("no items");
-    let img="";
-    const enc=entry.querySelector("enclosure"); if(enc?.getAttribute("type")?.startsWith("image")) img=enc.getAttribute("url")||"";
-    if(!img){ const m=(item.content||item.description).match(/<img[^>]+src=["']([^"']+)["']/i); if(m) img=m[1]; }
-    if(!img){ const med=entry.querySelector("thumbnail,[url]"); if(med) img=med.getAttribute("url")||""; }
-    const excerpt=(item.description||"").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim().slice(0,220);
-    wrap.innerHTML=`
-      <article class="grid grid-cols-1 md:grid-cols-[260px,1fr] gap-5 items-stretch">
-        ${img?`<a href="${item.link}" target="_blank" rel="noreferrer" class="block rounded-xl overflow-hidden border border-line bg-surface2">
-          <img src="${img}" alt="" class="w-full h-44 md:h-full object-cover" loading="lazy"/>
-        </a>`:`<div class="rounded-xl bg-surface2 border border-line h-44 md:h-full"></div>`}
-        <div class="flex flex-col">
-          <div class="text-xs text-mute">${fmt.date(new Date(item.pubDate).getTime())} · ${escapeHtml(item.author||"Yong Social")}</div>
-          <h3 class="text-xl font-bold mt-1 leading-snug"><a href="${item.link}" target="_blank" rel="noreferrer" class="hover:text-brand">${escapeHtml(item.title)}</a></h3>
-          <p class="text-sm text-mute mt-2 flex-1">${escapeHtml(excerpt)}…</p>
-          <div class="mt-4">
-            <a href="${item.link}" target="_blank" rel="noreferrer" class="btn-brand inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm">
-              Read more
-              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+async function loadSocials() {
+    const list = $("#socialList");
+    list.innerHTML = CONFIG.socials.map((s, i) => `
+        <li id="soc-${i}" class="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface2 transition">
+            <a href="${s.url}" target="_blank" rel="noreferrer" class="flex items-center gap-3 min-w-0">
+                <span class="w-8 h-8 grid place-items-center rounded-lg bg-surface2 border border-line text-brand">${ICONS[s.icon] || ""}</span>
+                <span class="min-w-0">
+                    <span class="block text-sm font-medium truncate">${s.name}</span>
+                    <span class="block text-xs text-mute truncate">${s.handle}</span>
+                </span>
             </a>
-          </div>
-        </div>
-      </article>`;
-  }catch(e){
-    wrap.innerHTML=`<div class="text-sm text-mute p-4 text-center">
-      Unable to load the latest article right now.
-      <a class="underline text-brand" href="${CONFIG.company.site}" target="_blank" rel="noreferrer">Visit yongsocial.com</a>.
-    </div>`;
-  }
-}
-
-/* ================ POLLS (Firestore) ================ */
-const POLL_TALLY = {}; // pollId -> { votes:{optId:count}, voters:{uid:optId} }
-function getVote(pollId){ const uid=String(TG_USER.id); return POLL_TALLY[pollId]?.voters?.[uid] || null; }
-function getDeltas(pollId){ return POLL_TALLY[pollId]?.votes || {}; }
-async function setVote(pollId, optId){
-  const uid = String(TG_USER.id);
-  const ref = doc(db, "polls", pollId);
-  await runTransaction(db, async (tx)=>{
-    const snap = await tx.get(ref);
-    const data = snap.data() || {};
-    if (data.voters?.[uid]) return;
-    const votes = { ...(data.votes||{}) };
-    votes[optId] = (votes[optId]||0) + 1;
-    const voters = { ...(data.voters||{}), [uid]: optId };
-    tx.set(ref, { votes, voters, updatedAt: serverTimestamp() }, { merge: true });
-  });
-}
-function subscribePolls(){
-  POLLS.forEach(p=>{
-    onSnapshot(doc(db,"polls",p.id), (snap)=>{
-      POLL_TALLY[p.id] = snap.data() || {};
-      if(!$("#view-pool").classList.contains("hidden")) renderPolls();
-    });
-  });
-}
-function countsFor(poll){
-  const d=getDeltas(poll.id);
-  return poll.options.map(o=>({...o, votes:(o.baseline||0)+(d[o.id]||0)}));
-}
-function countdownStr(ms){
-  if(ms<=0) return "Ended";
-  const s=Math.floor(ms/1000), d=Math.floor(s/86400), h=Math.floor(s%86400/3600),
-        m=Math.floor(s%3600/60), sec=s%60;
-  const pad=n=>String(n).padStart(2,"0");
-  return `${d}d ${pad(h)}h ${pad(m)}m ${pad(sec)}s`;
-}
-
-function renderPolls(){
-  const wrap=$("#pollsList");
-  const sorted=[...POLLS].sort((a,b)=>{
-    const aE=a.endsAt<Date.now(), bE=b.endsAt<Date.now();
-    if(aE!==bE) return aE?1:-1;
-    return b.publishedAt-a.publishedAt;
-  });
-  $("#poolCount").textContent=`${sorted.length} poll${sorted.length===1?"":"s"} published`;
-  wrap.innerHTML=sorted.map(poll=>{
-    const ended=Date.now()>=poll.endsAt;
-    const opts=countsFor(poll);
-    const total=opts.reduce((a,o)=>a+o.votes,0)||1;
-    const myVote=getVote(poll.id);
-    const showResults=ended||!!myVote;
-    const winner=ended?opts.slice().sort((a,b)=>b.votes-a.votes)[0]:null;
-    return `
-    <article class="card p-6" data-poll="${poll.id}">
-      <header class="flex items-start justify-between gap-4 flex-wrap">
-        <div class="min-w-0">
-          <div class="flex items-center gap-2 text-xs">
-            ${ended
-              ? `<span class="chip px-2.5 py-0.5 text-mute">Ended</span>`
-              : `<span class="chip px-2.5 py-0.5 text-brand2 flex items-center gap-1.5"><span class="pulse-dot"></span> Live</span>`}
-            <span class="text-mute">Published ${fmt.date(poll.publishedAt)}</span>
-            <span class="text-mute">·</span>
-            <span class="text-mute">${ended?`Ended ${fmt.date(poll.endsAt)}`:`Ends ${fmt.dateTime(poll.endsAt)}`}</span>
-          </div>
-          <h2 class="text-lg md:text-xl font-bold mt-2">${escapeHtml(poll.question)}</h2>
-          ${poll.description?`<p class="text-sm text-mute mt-1">${escapeHtml(poll.description)}</p>`:""}
-        </div>
-        <div class="text-right">
-          <div class="text-[11px] uppercase tracking-wider text-mute">${ended?"Final votes":"Total votes"}</div>
-          <div class="font-bold text-brand">${fmt.num(total)}</div>
-          ${!ended?`<div class="text-[11px] text-mute mt-1" data-countdown>${countdownStr(poll.endsAt-Date.now())}</div>`:""}
-        </div>
-      </header>
-
-      <div class="mt-5 space-y-3">
-        ${opts.map(o=>{
-          const pct=total?(o.votes/total*100):0;
-          const chosen=myVote===o.id;
-          const isWinner=winner&&winner.id===o.id;
-          if(showResults){
-            return `
-            <div class="rounded-xl border ${chosen?'border-brand':'border-line'} bg-surface2/60 p-3">
-              <div class="flex items-center justify-between text-sm">
-                <div class="flex items-center gap-2 min-w-0">
-                  <span class="font-medium truncate">${escapeHtml(o.label)}</span>
-                  ${chosen?`<span class="chip text-[10px] px-2 py-0.5 text-brand">Your vote</span>`:""}
-                  ${isWinner?`<span class="chip text-[10px] px-2 py-0.5 text-brand2">Winner</span>`:""}
-                </div>
-                <div class="text-mute text-xs whitespace-nowrap">${fmt.num(o.votes)} · <span class="text-white font-semibold">${pct.toFixed(1)}%</span></div>
-              </div>
-              <div class="bar-track mt-2"><div class="bar-fill" style="width:${pct.toFixed(2)}%"></div></div>
-            </div>`;
-          }
-          return `
-            <button data-vote="${o.id}" class="w-full text-left rounded-xl border border-line hover:border-brand bg-surface2/40 hover:bg-surface2 transition p-3 flex items-center justify-between gap-3">
-              <span class="font-medium">${escapeHtml(o.label)}</span>
-              <span class="chip text-xs px-3 py-1 text-brand">Vote</span>
-            </button>`;
-        }).join("")}
-      </div>
-
-      ${ended
-        ? `<div class="mt-5 text-xs text-mute">This poll has ended. Results are final.</div>`
-        : (myVote
-            ? `<div class="mt-5 text-xs text-mute">Thanks for voting — results update live until the poll ends.</div>`
-            : `<div class="mt-5 text-xs text-mute">Cast your vote to reveal live results.</div>`)}
-    </article>`;
-  }).join("");
-
-  // wire vote buttons
-  $$("#pollsList [data-poll]").forEach(card=>{
-    const pollId=card.dataset.poll;
-    card.querySelectorAll("[data-vote]").forEach(b=>{
-      b.onclick=async ()=>{ await setVote(pollId, b.dataset.vote); renderPolls(); };
-    });
-  });
-}
-
-/* live countdown tick */
-setInterval(()=>{
-  if($("#view-pool").classList.contains("hidden")) return;
-  $$("#pollsList [data-poll]").forEach(card=>{
-    const poll=POLLS.find(p=>p.id===card.dataset.poll); if(!poll) return;
-    const el=card.querySelector("[data-countdown]");
-    if(el){
-      const left=poll.endsAt-Date.now();
-      if(left<=0){ renderPolls(); }
-      else el.textContent=countdownStr(left);
+            <span class="text-sm font-semibold" data-count>${s.count == null ? '<span class="skeleton inline-block w-10 h-3 rounded"></span>' : fmt.abbrev(s.count)}</span>
+        </li>`).join("");
+    const ghIdx = CONFIG.socials.findIndex(s => s.icon === "gh" && s.live);
+    if (ghIdx >= 0) {
+        const gh = CONFIG.socials[ghIdx];
+        try {
+            let r = await fetch(`https://api.github.com/users/${gh.handle}`);
+            if (!r.ok) r = await fetch(`https://api.github.com/orgs/${gh.handle}`);
+            const j = await r.json();
+            gh.count = j.followers ?? 0;
+        } catch { gh.count = gh.count ?? 0; }
+        const el = $(`#soc-${ghIdx} [data-count]`);
+        if (el) el.textContent = fmt.abbrev(gh.count);
     }
-  });
-},1000);
+    $("#followersTotal").textContent = fmt.abbrev(CONFIG.socials.reduce((a, s) => a + (s.count || 0), 0));
+}
 
-/* ================ BOOT ================ */
-$("#yr").textContent=new Date().getFullYear();
+// ============================================
+// CRYPTO
+// ============================================
+async function loadCrypto() {
+    const ids = CONFIG.cryptoHoldings.map(c => c.id).join(",");
+    const body = $("#cryptoBody");
+    body.innerHTML = CONFIG.cryptoHoldings.map(c => `
+        <tr data-sym="${c.symbol}">
+            <td class="py-3"><span class="font-semibold">${c.symbol}</span> <span class="text-mute text-xs">${c.id}</span></td>
+            <td class="py-3">${fmt.num(c.amount)}</td>
+            <td class="py-3"><span class="skeleton inline-block w-16 h-3 rounded"></span></td>
+            <td class="py-3 text-mute">—</td>
+            <td class="py-3 text-right text-mute">—</td>
+        </tr>`).join("");
+    let prices = {};
+    try {
+        const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
+        prices = await r.json();
+        store.set("ys.prices", prices);
+    } catch { prices = store.get("ys.prices") || {}; }
+    let cryptoTotal = 0;
+    CONFIG.cryptoHoldings.forEach(c => {
+        const p = prices[c.id]?.usd ?? 0,
+            ch = prices[c.id]?.usd_24h_change ?? 0,
+            val = p * c.amount;
+        cryptoTotal += val;
+        const row = body.querySelector(`tr[data-sym="${c.symbol}"]`);
+        if (row) row.innerHTML = `
+            <td class="py-3"><span class="font-semibold">${c.symbol}</span> <span class="text-mute text-xs">${c.id}</span></td>
+            <td class="py-3">${fmt.num(c.amount)}</td>
+            <td class="py-3">${p ? fmt.usdF(p) : "—"}</td>
+            <td class="py-3 ${ch >= 0 ? 'text-brand2' : 'text-danger'}">${fmt.pct(ch)}</td>
+            <td class="py-3 text-right font-medium">${fmt.usd(val)}</td>`;
+    });
+    $("#cryptoTotal").textContent = fmt.usd(cryptoTotal);
+    const net = CONFIG.baseNetWorthUSD + cryptoTotal;
+    $("#netWorth").textContent = fmt.usd(net);
+    $("#netWorthDelta").innerHTML = `Base ${fmt.usd(CONFIG.baseNetWorthUSD)} + crypto <span class="text-brand">${fmt.usd(cryptoTotal)}</span>`;
+}
+
+// ============================================
+// RSS
+// ============================================
+async function loadRecent() {
+    const wrap = $("#recentArticle");
+    try {
+        const proxy = `https://corsproxy.io/?url=${encodeURIComponent(CONFIG.rssFeed)}`;
+        const r = await fetch(proxy);
+        if (!r.ok) throw new Error("feed fetch failed");
+        const text = await r.text();
+        const xml = new DOMParser().parseFromString(text, "text/xml");
+        const entry = xml.querySelector("item");
+        if (!entry) throw new Error("no items");
+        const get = tag => entry.querySelector(tag)?.textContent?.trim() || "";
+        const item = {
+            title: get("title"),
+            link: get("link"),
+            pubDate: get("pubDate"),
+            author: get("author") || get("dc\\:creator") || "",
+            description: get("description") || get("content\\:encoded") || "",
+            content: get("content\\:encoded") || get("description") || "",
+        };
+        if (!item.title) throw new Error("no items");
+        let img = "";
+        const enc = entry.querySelector("enclosure");
+        if (enc?.getAttribute("type")?.startsWith("image")) img = enc.getAttribute("url") || "";
+        if (!img) { const m = (item.content || item.description).match(/<img[^>]+src=["']([^"']+)["']/i); if (m) img = m[1]; }
+        if (!img) { const med = entry.querySelector("thumbnail,[url]"); if (med) img = med.getAttribute("url") || ""; }
+        const excerpt = (item.description || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 220);
+        wrap.innerHTML = `
+            <article class="grid grid-cols-1 md:grid-cols-[260px,1fr] gap-5 items-stretch">
+                ${img ? `<a href="${item.link}" target="_blank" rel="noreferrer" class="block rounded-xl overflow-hidden border border-line bg-surface2">
+                    <img src="${img}" alt="" class="w-full h-44 md:h-full object-cover" loading="lazy"/>
+                </a>` : `<div class="rounded-xl bg-surface2 border border-line h-44 md:h-full"></div>`}
+                <div class="flex flex-col">
+                    <div class="text-xs text-mute">${fmt.date(new Date(item.pubDate).getTime())} · ${escapeHtml(item.author || "Yong Social")}</div>
+                    <h3 class="text-xl font-bold mt-1 leading-snug"><a href="${item.link}" target="_blank" rel="noreferrer" class="hover:text-brand">${escapeHtml(item.title)}</a></h3>
+                    <p class="text-sm text-mute mt-2 flex-1">${escapeHtml(excerpt)}…</p>
+                    <div class="mt-4">
+                        <a href="${item.link}" target="_blank" rel="noreferrer" class="btn-brand inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm">
+                            Read more
+                            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+                        </a>
+                    </div>
+                </div>
+            </article>`;
+    } catch (e) {
+        wrap.innerHTML = `<div class="text-sm text-mute p-4 text-center">
+            Unable to load the latest article right now.
+            <a class="underline text-brand" href="${CONFIG.company.site}" target="_blank" rel="noreferrer">Visit yongsocial.com</a>.
+        </div>`;
+    }
+}
+
+// ============================================
+// POLLS
+// ============================================
+const POLL_TALLY = {};
+function getVote(pollId) { const uid = String(TG_USER.id); return POLL_TALLY[pollId]?.voters?.[uid] || null; }
+function getDeltas(pollId) { return POLL_TALLY[pollId]?.votes || {}; }
+async function setVote(pollId, optId) {
+    const uid = String(TG_USER.id);
+    const ref = doc(db, "polls", pollId);
+    await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const data = snap.data() || {};
+        if (data.voters?.[uid]) return;
+        const votes = { ...(data.votes || {}) };
+        votes[optId] = (votes[optId] || 0) + 1;
+        const voters = { ...(data.voters || {}), [uid]: optId };
+        tx.set(ref, { votes, voters, updatedAt: serverTimestamp() }, { merge: true });
+    });
+}
+function subscribePolls() {
+    POLLS.forEach(p => {
+        onSnapshot(doc(db, "polls", p.id), (snap) => {
+            POLL_TALLY[p.id] = snap.data() || {};
+            if (!$("#view-pool").classList.contains("hidden")) renderPolls();
+        });
+    });
+}
+function countsFor(poll) {
+    const d = getDeltas(poll.id);
+    return poll.options.map(o => ({ ...o, votes: (o.baseline || 0) + (d[o.id] || 0) }));
+}
+function countdownStr(ms) {
+    if (ms <= 0) return "Ended";
+    const s = Math.floor(ms / 1000),
+        d = Math.floor(s / 86400),
+        h = Math.floor(s % 86400 / 3600),
+        m = Math.floor(s % 3600 / 60),
+        sec = s % 60;
+    const pad = n => String(n).padStart(2, "0");
+    return `${d}d ${pad(h)}h ${pad(m)}m ${pad(sec)}s`;
+}
+function renderPolls() {
+    const wrap = $("#pollsList");
+    const sorted = [...POLLS].sort((a, b) => {
+        const aE = a.endsAt < Date.now(),
+            bE = b.endsAt < Date.now();
+        if (aE !== bE) return aE ? 1 : -1;
+        return b.publishedAt - a.publishedAt;
+    });
+    $("#poolCount").textContent = `${sorted.length} poll${sorted.length === 1 ? "" : "s"} published`;
+    wrap.innerHTML = sorted.map(poll => {
+        const ended = Date.now() >= poll.endsAt;
+        const opts = countsFor(poll);
+        const total = opts.reduce((a, o) => a + o.votes, 0) || 1;
+        const myVote = getVote(poll.id);
+        const showResults = ended || !!myVote;
+        const winner = ended ? opts.slice().sort((a, b) => b.votes - a.votes)[0] : null;
+        return `
+        <article class="card p-6" data-poll="${poll.id}">
+            <header class="flex items-start justify-between gap-4 flex-wrap">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 text-xs">
+                        ${ended
+                            ? `<span class="chip px-2.5 py-0.5 text-mute">Ended</span>`
+                            : `<span class="chip px-2.5 py-0.5 text-brand2 flex items-center gap-1.5"><span class="pulse-dot"></span> Live</span>`}
+                        <span class="text-mute">Published ${fmt.date(poll.publishedAt)}</span>
+                        <span class="text-mute">·</span>
+                        <span class="text-mute">${ended ? `Ended ${fmt.date(poll.endsAt)}` : `Ends ${fmt.dateTime(poll.endsAt)}`}</span>
+                    </div>
+                    <h2 class="text-lg md:text-xl font-bold mt-2">${escapeHtml(poll.question)}</h2>
+                    ${poll.description ? `<p class="text-sm text-mute mt-1">${escapeHtml(poll.description)}</p>` : ""}
+                </div>
+                <div class="text-right">
+                    <div class="text-[11px] uppercase tracking-wider text-mute">${ended ? "Final votes" : "Total votes"}</div>
+                    <div class="font-bold text-brand">${fmt.num(total)}</div>
+                    ${!ended ? `<div class="text-[11px] text-mute mt-1" data-countdown>${countdownStr(poll.endsAt - Date.now())}</div>` : ""}
+                </div>
+            </header>
+
+            <div class="mt-5 space-y-3">
+                ${opts.map(o => {
+                    const pct = total ? (o.votes / total * 100) : 0;
+                    const chosen = myVote === o.id;
+                    const isWinner = winner && winner.id === o.id;
+                    if (showResults) {
+                        return `
+                        <div class="rounded-xl border ${chosen ? 'border-brand' : 'border-line'} bg-surface2/60 p-3">
+                            <div class="flex items-center justify-between text-sm">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="font-medium truncate">${escapeHtml(o.label)}</span>
+                                    ${chosen ? `<span class="chip text-[10px] px-2 py-0.5 text-brand">Your vote</span>` : ""}
+                                    ${isWinner ? `<span class="chip text-[10px] px-2 py-0.5 text-brand2">Winner</span>` : ""}
+                                </div>
+                                <div class="text-mute text-xs whitespace-nowrap">${fmt.num(o.votes)} · <span class="text-white font-semibold">${pct.toFixed(1)}%</span></div>
+                            </div>
+                            <div class="bar-track mt-2"><div class="bar-fill" style="width:${pct.toFixed(2)}%"></div></div>
+                        </div>`;
+                    }
+                    return `
+                        <button data-vote="${o.id}" class="w-full text-left rounded-xl border border-line hover:border-brand bg-surface2/40 hover:bg-surface2 transition p-3 flex items-center justify-between gap-3">
+                            <span class="font-medium">${escapeHtml(o.label)}</span>
+                            <span class="chip text-xs px-3 py-1 text-brand">Vote</span>
+                        </button>`;
+                }).join("")}
+            </div>
+
+            ${ended
+                ? `<div class="mt-5 text-xs text-mute">This poll has ended. Results are final.</div>`
+                : (myVote
+                    ? `<div class="mt-5 text-xs text-mute">Thanks for voting — results update live until the poll ends.</div>`
+                    : `<div class="mt-5 text-xs text-mute">Cast your vote to reveal live results.</div>`)}
+        </article>`;
+    }).join("");
+
+    $$("#pollsList [data-poll]").forEach(card => {
+        const pollId = card.dataset.poll;
+        card.querySelectorAll("[data-vote]").forEach(b => {
+            b.onclick = async () => { await setVote(pollId, b.dataset.vote);
+                renderPolls(); };
+        });
+    });
+}
+
+// ============================================
+// COUNTDOWN TICK
+// ============================================
+setInterval(() => {
+    if ($("#view-pool").classList.contains("hidden")) return;
+    $$("#pollsList [data-poll]").forEach(card => {
+        const poll = POLLS.find(p => p.id === card.dataset.poll);
+        if (!poll) return;
+        const el = card.querySelector("[data-countdown]");
+        if (el) {
+            const left = poll.endsAt - Date.now();
+            if (left <= 0) { renderPolls(); } else el.textContent = countdownStr(left);
+        }
+    });
+}, 1000);
+
+// ============================================
+// BOOT
+// ============================================
+$("#yr").textContent = new Date().getFullYear();
 renderChart();
 loadSocials();
-loadCrypto(); setInterval(loadCrypto,60_000);
+loadCrypto();
+setInterval(loadCrypto, 60000);
 loadRecent();
-loadProfile().catch(e=>{
-  const err=document.getElementById("profileError");
-  if(err){ err.textContent=e.message; err.classList.remove("hidden"); }
-  document.getElementById("profileLoading")?.classList.add("hidden");
-}).finally(()=>{ if(location.hash.startsWith("#/profile")) renderProfile(); });
-subscribePolls();
-route();
+
+async function initApp() {
+    try {
+        // Initialize TON Payment System
+        tonPayment = new TONPaymentSystem(TON_CONFIG);
+        
+        // Load profile
+        await loadProfile();
+        
+        // Render profile if on profile page
+        if (location.hash.startsWith("#/profile")) renderProfile();
+        
+        // Subscribe to polls
+        subscribePolls();
+        route();
+        
+        console.log('App initialized successfully');
+    } catch (error) {
+        console.error('App initialization error:', error);
+        const err = document.getElementById('profileError');
+        if (err) {
+            err.textContent = 'Error: ' + error.message;
+            err.classList.remove('hidden');
+        }
+        document.getElementById('profileLoading')?.classList.add('hidden');
+    }
+}
+
+initApp();
+
 </script>
 </body>
 </html>
