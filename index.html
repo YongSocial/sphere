@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -9,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
-<!-- TON Connect library not used — payments via native ton:// deep links -->
+<!-- Payments via wallet universal HTTPS deep links (Tonkeeper / Tonhub / MyTonWallet) with ton:// fallback -->
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>const _cw=console.warn.bind(console);console.warn=(...a)=>{if(typeof a[0]==='string'&&a[0].includes('cdn.tailwindcss.com'))return;_cw(...a);};</script>
@@ -681,6 +682,36 @@ class TONPaymentSystem {
         this.overlay?.classList.remove('active');
     }
 
+    buildWalletLinks(amountNano, commentRaw) {
+        const addr = this.config.RECEIVER_ADDRESS;
+        const comment = encodeURIComponent(commentRaw);
+        // Universal HTTPS deep links — these work from Telegram WebApp's openLink
+        // (which only accepts http/https) AND fall through to the installed wallet app on mobile.
+        // Desktop browsers without a wallet app will land on the wallet's web page.
+        return {
+            tonkeeper: `https://app.tonkeeper.com/transfer/${addr}?amount=${amountNano}&text=${comment}`,
+            tonhub:    `https://tonhub.com/transfer/${addr}?amount=${amountNano}&text=${comment}`,
+            mytonwallet: `https://connect.mytonwallet.org/transfer/${addr}?amount=${amountNano}&text=${comment}`,
+            // ton:// as last-resort native scheme (only works if a wallet has registered the handler)
+            native:    `ton://transfer/${addr}?amount=${amountNano}&text=${comment}`,
+        };
+    }
+
+    openWalletLink(url) {
+        const tgApp = window.Telegram?.WebApp;
+        // Telegram WebApp: openLink only handles http/https. For ton:// use openTelegramLink-style fallback.
+        if (tgApp?.openLink && /^https?:/.test(url)) {
+            tgApp.openLink(url, { try_instant_view: false });
+            return;
+        }
+        // Desktop / external browser
+        const w = window.open(url, '_blank');
+        if (!w) {
+            // Popup blocked — navigate same tab as last resort
+            window.location.href = url;
+        }
+    }
+
     async processPayment() {
         if (this.isProcessing) return;
         this.isProcessing = true;
@@ -690,16 +721,10 @@ class TONPaymentSystem {
 
         const userId = this.getUserId();
         const amountNano = Math.floor(this.paymentAmountTON * 1e9);
-        const comment = encodeURIComponent('ys_' + userId);
-        const tonUrl = `ton://transfer/${this.config.RECEIVER_ADDRESS}?amount=${amountNano}&text=${comment}`;
+        const links = this.buildWalletLinks(amountNano, 'ys_' + userId);
 
-        // Open wallet — Telegram native first, then fallback
-        const tgApp = window.Telegram?.WebApp;
-        if (tgApp?.openLink) {
-            tgApp.openLink(tonUrl);
-        } else {
-            window.open(tonUrl, '_blank');
-        }
+        // Default: open Tonkeeper universal link (works in Telegram + desktop)
+        this.openWalletLink(links.tonkeeper);
 
         // Switch UI to waiting state
         if (this.statusIcon)  this.statusIcon.textContent  = '⏳';
@@ -709,8 +734,19 @@ class TONPaymentSystem {
                 <div class="spinner"></div>
                 <p class="text-sm text-center">Complete the payment in your wallet, then come back here.</p>
                 <p class="text-xs text-mute">Checking automatically every 5 seconds…</p>
+                <div class="flex flex-wrap gap-2 justify-center mt-1">
+                    <button id="openTonkeeperBtn" class="chip px-3 py-1.5 text-xs">Tonkeeper</button>
+                    <button id="openTonhubBtn" class="chip px-3 py-1.5 text-xs">Tonhub</button>
+                    <button id="openMytonBtn" class="chip px-3 py-1.5 text-xs">MyTonWallet</button>
+                    <button id="openNativeBtn" class="chip px-3 py-1.5 text-xs">Other (ton://)</button>
+                </div>
                 <button id="iDidPayBtn" class="btn-brand rounded-xl px-6 py-2.5 text-sm mt-1">✅ I've Paid — Check Now</button>
             </div>`;
+        // Wire wallet picker
+        document.getElementById('openTonkeeperBtn')?.addEventListener('click', () => this.openWalletLink(links.tonkeeper));
+        document.getElementById('openTonhubBtn')?.addEventListener('click',    () => this.openWalletLink(links.tonhub));
+        document.getElementById('openMytonBtn')?.addEventListener('click',     () => this.openWalletLink(links.mytonwallet));
+        document.getElementById('openNativeBtn')?.addEventListener('click',    () => this.openWalletLink(links.native));
 
         this.payBtn?.classList.add('hidden');
         document.getElementById('iDidPayBtn')?.addEventListener('click', () => {
