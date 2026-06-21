@@ -155,7 +155,6 @@ const TON_CONFIG = {
         <button id="payBtn" class="btn-brand w-full rounded-xl py-3 font-semibold hidden">
           Pay <span id="payAmount">0 TON</span>
         </button>
-        <button id="closePaymentBtn" class="btn-ghost rounded-xl py-2.5 text-sm">Cancel</button>
       </div>
 
       <div id="paymentDebug" class="text-xs text-mute text-center hidden"></div>
@@ -747,27 +746,23 @@ class TONPaymentSystem {
         this.payBtn.addEventListener('click', () => this.processPayment());
         
         this.closeBtn.addEventListener('click', () => {
-            if (!this.isProcessing) {
-                this.hidePaymentOverlay();
-            }
+            // Cancel is disabled — payment is required to access the app
         });
         
         this.overlay.addEventListener('click', (e) => {
-            if (e.target === this.overlay && !this.isProcessing) {
-                this.hidePaymentOverlay();
-            }
+            // Prevent closing by clicking backdrop — payment is required
         });
         
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !this.isProcessing) {
-                this.hidePaymentOverlay();
-            }
+            // Prevent closing with Escape — payment is required
         });
     }
     
     showPaymentOverlay() {
         this.overlay.classList.add('active');
         this.updatePaymentUI('idle');
+        // Disable Telegram back button so it can't be used to bypass payment
+        try { window.Telegram?.WebApp?.BackButton?.hide(); } catch {}
     }
     
     hidePaymentOverlay() {
