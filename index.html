@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -186,11 +185,17 @@ const TON_CONFIG = {
         </p>
       </div>
 
-      <div id="tonConnectContainer"></div>
+      <div id="tonConnectContainer" class="hidden"></div>
 
       <div class="flex flex-col gap-2">
+        <button id="connectWalletBtn" class="btn-brand w-full rounded-xl py-3 font-semibold">
+          Connect Wallet
+        </button>
         <button id="payBtn" class="btn-brand w-full rounded-xl py-3 font-semibold hidden">
           Pay <span id="payAmount">0 TON</span>
+        </button>
+        <button id="disconnectWalletBtn" class="text-xs text-mute underline hidden">
+          Disconnect wallet
         </button>
       </div>
 
@@ -681,9 +686,11 @@ class TONPaymentSystem {
         });
 
         try {
+            // NOTE: no buttonRootId — we use our own visible "Connect Wallet" button
+            // and call tonConnect.openModal() on click. This guarantees the button
+            // always responds even if the library's auto-rendered button fails to mount.
             this.tonConnect = new TonConnectUIClass({
                 manifestUrl: this.config.MANIFEST_URL,
-                buttonRootId: 'tonConnectContainer',
                 language: 'en',
                 walletsListConfiguration: {
                     includeWallets: [
@@ -706,27 +713,55 @@ class TONPaymentSystem {
                     ]
                 }
             });
-            
+
+            const connectBtn = document.getElementById('connectWalletBtn');
+            const disconnectBtn = document.getElementById('disconnectWalletBtn');
+
             this.tonConnect.onStatusChange((wallet) => {
                 if (wallet) {
                     this.wallet = wallet;
                     this.isConnected = true;
                     this.showPayButton();
+                    connectBtn?.classList.add('hidden');
+                    disconnectBtn?.classList.remove('hidden');
                     this.showDebug('Wallet connected: ' + wallet.account.address);
                     this.updatePaymentUI('connected', 'Wallet Connected', 'Ready to pay');
                 } else {
                     this.wallet = null;
                     this.isConnected = false;
                     this.hidePayButton();
+                    connectBtn?.classList.remove('hidden');
+                    disconnectBtn?.classList.add('hidden');
                     this.showDebug('Wallet disconnected');
                     this.updatePaymentUI('idle');
                 }
             });
-            
+
         } catch (error) {
             console.error('TON Connect init error:', error);
             throw error; // re-thrown so init() can show fallback UI
         }
+    }
+
+    async handleConnectClick() {
+        if (!this.tonConnect) {
+            this.showDebug('Wallet connector still loading — please wait or refresh.');
+            return;
+        }
+        try {
+            if (typeof this.tonConnect.openModal === 'function') {
+                await this.tonConnect.openModal();
+            } else if (typeof this.tonConnect.connectWallet === 'function') {
+                await this.tonConnect.connectWallet();
+            }
+        } catch (err) {
+            console.error('Connect wallet error:', err);
+            this.showDebug('Could not open wallet modal: ' + (err?.message || err));
+        }
+    }
+
+    async handleDisconnectClick() {
+        try { await this.tonConnect?.disconnect(); } catch (e) { console.warn(e); }
     }
     
     async updatePriceAndAmount() {
@@ -811,6 +846,8 @@ class TONPaymentSystem {
     
     setupEventListeners() {
         this.payBtn?.addEventListener('click', () => this.processPayment());
+        document.getElementById('connectWalletBtn')?.addEventListener('click', () => this.handleConnectClick());
+        document.getElementById('disconnectWalletBtn')?.addEventListener('click', () => this.handleDisconnectClick());
         this.closeBtn?.addEventListener('click', () => {
             // Cancel is disabled — payment is required to access the app
         });
