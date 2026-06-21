@@ -20,22 +20,20 @@
 <!-- TON Configuration -->
 <script>
 // ============================================
-// TON CONFIGURATION - UPDATE THESE VALUES
+// TON CONFIGURATION - UPDATED WITH YOUR WALLET
 // ============================================
 const TON_CONFIG = {
-    // YOUR TON WALLET ADDRESS TO RECEIVE PAYMENTS
-    // Get this from Tonkeeper, Telegram Wallet, or any TON wallet
-    RECEIVER_ADDRESS: 'UQCX...YOUR_TON_WALLET_ADDRESS_HERE...', // ⚠️ REPLACE THIS
+    // ✅ YOUR TON WALLET ADDRESS
+    RECEIVER_ADDRESS: 'UQCNkn-JKMvyH4StWJtsTVG4UMx0BbcTMaHiVMn8iYJPAp4V',
     
-    // Payment amount in USD (fixed)
+    // Fixed payment amount in USD
     PAYMENT_AMOUNT_USD: 1.00,
     
     // Network: 'mainnet' or 'testnet'
     NETWORK: 'mainnet',
     
-    // Your domain for TON Connect manifest
-    // Create tonconnect-manifest.json at this URL
-    MANIFEST_URL: 'https://your-domain.com/tonconnect-manifest.json', // ⚠️ REPLACE THIS
+    // TON Connect manifest hosted on GitHub Pages
+    MANIFEST_URL: 'https://yongsocial.github.io/sphere/tonconnect-manifest.json',
     
     // Price cache duration (milliseconds)
     PRICE_CACHE_DURATION: 60000, // 1 minute
@@ -115,7 +113,6 @@ const TON_CONFIG = {
     border: 1px solid rgba(212, 178, 90, 0.3);
   }
   
-  /* TON Connect button override */
   .ton-connect-btn { background: #d4b25a !important; color: #0b1120 !important; font-weight: 600 !important; border-radius: 9999px !important; padding: 0.75rem 1.5rem !important; }
   .ton-connect-btn:hover { filter: brightness(1.05) !important; }
 </style>
@@ -123,13 +120,12 @@ const TON_CONFIG = {
 <body class="min-h-screen grain">
 
 <!-- ============================================ -->
-<!-- PAYMENT OVERLAY - Shows when user hasn't paid -->
+<!-- PAYMENT OVERLAY -->
 <!-- ============================================ -->
 <div id="paymentOverlay" class="payment-overlay">
   <div class="payment-modal card p-6">
     <div id="paymentContent" class="space-y-6">
       
-      <!-- Payment Status -->
       <div id="paymentStatus" class="payment-status border-2 rounded-2xl p-6 text-center">
         <div id="statusIcon" class="text-5xl mb-3">💎</div>
         <h2 id="statusTitle" class="text-xl font-bold">Pay to Access Yong Social</h2>
@@ -143,7 +139,6 @@ const TON_CONFIG = {
         </div>
       </div>
 
-      <!-- Staking Info -->
       <div class="staking-info rounded-xl p-4 text-sm">
         <div class="flex items-center gap-2">
           <span>🔒</span>
@@ -154,10 +149,8 @@ const TON_CONFIG = {
         </p>
       </div>
 
-      <!-- TON Connect Button Container -->
       <div id="tonConnectContainer"></div>
 
-      <!-- Action Buttons -->
       <div class="flex flex-col gap-2">
         <button id="payBtn" class="btn-brand w-full rounded-xl py-3 font-semibold hidden">
           Pay <span id="payAmount">0 TON</span>
@@ -165,7 +158,6 @@ const TON_CONFIG = {
         <button id="closePaymentBtn" class="btn-ghost rounded-xl py-2.5 text-sm">Cancel</button>
       </div>
 
-      <!-- Debug -->
       <div id="paymentDebug" class="text-xs text-mute text-center hidden"></div>
     </div>
   </div>
@@ -497,7 +489,7 @@ const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 
 // ============================================
-// TON PRICE SERVICE - Fetches real-time TON price
+// TON PRICE SERVICE
 // ============================================
 class TONPriceService {
     constructor() {
@@ -511,14 +503,11 @@ class TONPriceService {
     async getTONPrice(forceRefresh = false) {
         const now = Date.now();
         
-        // Return cached price if still valid and not forcing refresh
         if (!forceRefresh && this.cachedPrice && (now - this.lastFetchTime) < this.cacheDuration) {
             return this.cachedPrice;
         }
         
-        // Prevent multiple simultaneous fetches
         if (this.isFetching) {
-            // Wait for the current fetch to complete
             await new Promise(resolve => {
                 const check = () => {
                     if (!this.isFetching) resolve();
@@ -570,7 +559,6 @@ class TONPriceService {
     async getTONAmountForUSD(usdAmount) {
         const price = await this.getTONPrice();
         const tonAmount = usdAmount / price;
-        // Round to 6 decimal places (TON standard)
         return Math.round(tonAmount * 1e6) / 1e6;
     }
 }
@@ -609,22 +597,15 @@ class TONPaymentSystem {
     
     async init() {
         try {
-            // Update price display
             await this.updatePriceAndAmount();
-            
-            // Initialize TON Connect
             await this.initTONConnect();
             
-            // Check if user already paid
             const paid = await this.checkPaymentStatus();
             if (!paid) {
-                // Show payment overlay
                 setTimeout(() => this.showPaymentOverlay(), 500);
             }
             
-            // Setup event listeners
             this.setupEventListeners();
-            
             console.log('TON Payment System initialized');
         } catch (error) {
             console.error('TON Payment init error:', error);
@@ -634,7 +615,6 @@ class TONPaymentSystem {
     
     async initTONConnect() {
         try {
-            // Create TON Connect UI instance
             this.tonConnect = new TONConnectUI({
                 manifestUrl: this.config.MANIFEST_URL,
                 buttonRootId: 'tonConnectContainer',
@@ -661,7 +641,6 @@ class TONPaymentSystem {
                 }
             });
             
-            // Listen for wallet connection status
             this.tonConnect.onStatusChange((wallet) => {
                 if (wallet) {
                     this.wallet = wallet;
@@ -686,13 +665,11 @@ class TONPaymentSystem {
     
     async updatePriceAndAmount() {
         try {
-            // Get TON price and calculate amount
             const price = await this.priceService.getTONPrice();
             this.paymentAmountTON = await this.priceService.getTONAmountForUSD(
                 this.config.PAYMENT_AMOUNT_USD
             );
             
-            // Update UI
             if (this.displayAmount) {
                 this.displayAmount.textContent = 
                     `${this.paymentAmountTON} TON (~$${this.config.PAYMENT_AMOUNT_USD} USD)`;
@@ -705,13 +682,11 @@ class TONPaymentSystem {
                     <span>1 TON = $${price.toFixed(4)} USD</span>
                     <button id="refreshPriceBtn" class="text-brand hover:underline text-xs ml-2">↻ Refresh</button>
                 `;
-                // Re-bind refresh button
                 document.getElementById('refreshPriceBtn')?.addEventListener('click', () => {
                     this.updatePriceAndAmount(true);
                 });
             }
             
-            // Update description
             const desc = document.querySelector('#statusDescription');
             if (desc) {
                 desc.innerHTML = `
@@ -725,7 +700,6 @@ class TONPaymentSystem {
             
         } catch (error) {
             console.error('[Payment] Error updating amount:', error);
-            // Use fallback
             this.paymentAmountTON = 0.4;
             if (this.displayAmount) {
                 this.displayAmount.textContent = `${this.paymentAmountTON} TON`;
@@ -770,24 +744,20 @@ class TONPaymentSystem {
     }
     
     setupEventListeners() {
-        // Pay button
         this.payBtn.addEventListener('click', () => this.processPayment());
         
-        // Close button - only allow close if not processing
         this.closeBtn.addEventListener('click', () => {
             if (!this.isProcessing) {
                 this.hidePaymentOverlay();
             }
         });
         
-        // Click outside to close - only if not processing
         this.overlay.addEventListener('click', (e) => {
             if (e.target === this.overlay && !this.isProcessing) {
                 this.hidePaymentOverlay();
             }
         });
         
-        // Keyboard Escape
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !this.isProcessing) {
                 this.hidePaymentOverlay();
@@ -801,7 +771,7 @@ class TONPaymentSystem {
     }
     
     hidePaymentOverlay() {
-        if (this.isProcessing) return; // Don't close during processing
+        if (this.isProcessing) return;
         this.overlay.classList.remove('active');
     }
     
@@ -833,7 +803,6 @@ class TONPaymentSystem {
         this.statusIcon.textContent = icons[status] || '💎';
         this.statusTitle.textContent = titles[status] || titles.idle;
         
-        // Update description based on status
         if (status === 'pending') {
             this.statusDescription.innerHTML = `
                 <div class="flex flex-col items-center gap-3">
@@ -850,7 +819,6 @@ class TONPaymentSystem {
                     ${this.paymentTxId ? `<p class="text-xs text-mute font-mono">TX: ${this.paymentTxId}</p>` : ''}
                 </div>
             `;
-            // Auto-hide after 3 seconds
             setTimeout(() => {
                 if (this.paymentStatus === 'success') {
                     this.hidePaymentOverlay();
@@ -914,7 +882,6 @@ class TONPaymentSystem {
     async processPayment() {
         if (this.isProcessing) return;
         
-        // Ensure wallet is connected
         if (!this.isConnected) {
             try {
                 await this.tonConnect.connectWallet();
@@ -934,15 +901,12 @@ class TONPaymentSystem {
         this.updatePaymentUI('pending');
         
         try {
-            // Get fresh price before sending
             await this.updatePriceAndAmount();
             
-            // Convert TON amount to nanotons (1 TON = 1,000,000,000 nanoton)
             const amountNanoton = String(Math.floor(this.paymentAmountTON * 1e9));
             
-            // Build transaction
             const transaction = {
-                validUntil: Math.floor(Date.now() / 1000) + 600, // 10 minutes
+                validUntil: Math.floor(Date.now() / 1000) + 600,
                 messages: [
                     {
                         address: this.config.RECEIVER_ADDRESS,
@@ -954,7 +918,6 @@ class TONPaymentSystem {
             
             console.log('[Payment] Sending transaction:', transaction);
             
-            // Send transaction
             const result = await this.tonConnect.sendTransaction(transaction);
             console.log('[Payment] Transaction result:', result);
             
@@ -963,14 +926,11 @@ class TONPaymentSystem {
                 this.paymentStatus = 'success';
                 this.updatePaymentUI('success');
                 
-                // Record payment in Firebase
                 await this.recordPayment(result);
                 
-                // Reload profile to show updated status
                 await loadProfile();
                 renderProfile();
                 
-                // Hide overlay after success
                 setTimeout(() => this.hidePaymentOverlay(), 2000);
             } else {
                 throw new Error('Transaction failed - no result returned');
@@ -1168,21 +1128,17 @@ function renderProfile() {
         }
     };
 
-    // Yong Stars wallet
     const starsBalance = PROFILE.starsBalance || 0;
     document.getElementById('starsBalance').textContent = starsBalance.toLocaleString();
     document.getElementById('convertBalance').textContent = starsBalance.toLocaleString() + ' YS';
     document.getElementById('convertValue').textContent = '$' + (starsBalance * 0.001).toFixed(2) + ' USDT';
 
-    // Buy modal
     const buyModal = document.getElementById('buyModal');
     document.getElementById('btnBuyStars').onclick = () => buyModal.classList.remove('hidden');
     document.getElementById('closeBuyModal').onclick = () => buyModal.classList.add('hidden');
     buyModal.addEventListener('click', e => { if (e.target === buyModal) buyModal.classList.add('hidden'); });
     document.querySelectorAll('.star-pkg').forEach(btn => {
         btn.onclick = () => {
-            const stars = btn.dataset.stars;
-            const price = btn.dataset.price;
             btn.classList.add('border-brand');
             const orig = btn.querySelector('.text-xs.font-semibold').textContent;
             btn.querySelector('.text-xs.font-semibold').textContent = 'Interest noted!';
@@ -1193,7 +1149,6 @@ function renderProfile() {
         };
     });
 
-    // Convert modal
     const convertModal = document.getElementById('convertModal');
     document.getElementById('btnConvertStars').onclick = () => convertModal.classList.remove('hidden');
     document.getElementById('closeConvertModal').onclick = () => convertModal.classList.add('hidden');
@@ -1646,9 +1601,6 @@ function renderPolls() {
     });
 }
 
-// ============================================
-// COUNTDOWN TICK
-// ============================================
 setInterval(() => {
     if ($("#view-pool").classList.contains("hidden")) return;
     $$("#pollsList [data-poll]").forEach(card => {
@@ -1674,19 +1626,11 @@ loadRecent();
 
 async function initApp() {
     try {
-        // Initialize TON Payment System
         tonPayment = new TONPaymentSystem(TON_CONFIG);
-        
-        // Load profile
         await loadProfile();
-        
-        // Render profile if on profile page
         if (location.hash.startsWith("#/profile")) renderProfile();
-        
-        // Subscribe to polls
         subscribePolls();
         route();
-        
         console.log('App initialized successfully');
     } catch (error) {
         console.error('App initialization error:', error);
