@@ -269,7 +269,7 @@ const TON_CONFIG = {
         <div class="font-semibold">Most Recent</div>
         <div class="text-xs text-mute">Latest article from yongsocial.com</div>
       </div>
-      <span class="chip text-xs px-2.5 py-1 text-brand">RSS</span>
+      <span class="chip text-xs px-2.5 py-1 text-brand">TREND</span>
     </div>
     <div id="recentArticle">
       <div class="skeleton h-40 rounded-xl"></div>
@@ -1033,6 +1033,7 @@ const CONFIG = {
         { id: "solana", symbol: "SOL", amount: 1200 },
         { id: "usd-coin", symbol: "USDC", amount: 250000 },
         { id: "ripple", symbol: "XRP", amount: 50000 },
+        { id: "the-open-network", symbol: "TON", amount: 0 },
     ],
     socials: [
         { name: "X (Twitter)", handle: "@yongsocial", url: "https://x.com/yongsocial", count: 12400, icon: "x" },
@@ -1324,7 +1325,7 @@ async function loadRecent() {
                     <img src="${img}" alt="" class="w-full h-44 md:h-full object-cover" loading="lazy"/>
                 </a>` : `<div class="rounded-xl bg-surface2 border border-line h-44 md:h-full"></div>`}
                 <div class="flex flex-col">
-                    <div class="text-xs text-mute">${fmt.date(new Date(item.pubDate).getTime())} · ${escapeHtml(item.author || "Yong Social")}</div>
+                    <div class="text-xs text-mute">${fmt.date(new Date(item.pubDate).getTime())} · ${escapeHtml((item.author || "").replace(/noreply@blogger\.com/gi, "yongsocial@outlook.com") || "yongsocial@outlook.com")}</div>
                     <h3 class="text-xl font-bold mt-1 leading-snug"><a href="${item.link}" target="_blank" rel="noreferrer" class="hover:text-brand">${escapeHtml(item.title)}</a></h3>
                     <p class="text-sm text-mute mt-2 flex-1">${escapeHtml(excerpt)}…</p>
                     <div class="mt-4">
