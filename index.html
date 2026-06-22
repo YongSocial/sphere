@@ -8,9 +8,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-
-<!-- Payments via wallet universal HTTPS deep links (Tonkeeper / Tonhub / MyTonWallet) with ton:// fallback -->
-
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>const _cw=console.warn.bind(console);console.warn=(...a)=>{if(typeof a[0]==='string'&&a[0].includes('cdn.tailwindcss.com'))return;_cw(...a);};</script>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -50,7 +47,7 @@ const TON_CONFIG = {
         colors: {
           ink:'#070b14', surface:'#0d1322', surface2:'#121a2d',
           line:'#1f2940', mute:'#8a93a8',
-          brand:'#d4b25a', brand2:'#22c984', danger:'#ef4444',
+          brand:'#d4b25a', brand2:'#22c984', danger:'#ef4444'
         },
       },
     },
@@ -185,6 +182,8 @@ const TON_CONFIG = {
           <a href="#/announcements" class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface2 transition" data-route="/announcements">📢 Announcements</a>
           <a href="#/courses" class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface2 transition" data-route="/courses">📚 Courses</a>
           <a href="#/earn" class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface2 transition" data-route="/earn">✨ Earn Yong Stars</a>
+          <!-- Community link added here -->
+          <a href="#/community" class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface2 transition" data-route="/community">👥 Community</a>
         </div>
       </div>
       <a href="#/profile" class="nav-link flex items-center gap-2" data-route="/profile" id="navProfile">
@@ -1533,7 +1532,8 @@ function route() {
     const isAnnouncements = hash.startsWith("/announcements");
     const isCourses = hash.startsWith("/courses");
     const isEarn = hash.startsWith("/earn");
-    const isMore = isAnnouncements || isCourses || isEarn;
+    const isCommunity = hash.startsWith("/community");
+    const isMore = isAnnouncements || isCourses || isEarn || isCommunity;
     
     $("#view-dashboard").classList.toggle("hidden", isPool || isProfile || isMore);
     $("#view-pool").classList.toggle("hidden", !isPool);
@@ -1541,6 +1541,42 @@ function route() {
     $("#view-announcements").classList.toggle("hidden", !isAnnouncements);
     $("#view-courses").classList.toggle("hidden", !isCourses);
     $("#view-earn").classList.toggle("hidden", !isEarn);
+    
+    // Community view: scroll to the community bar, or show a message
+    if (isCommunity) {
+        const bar = document.getElementById("communityBar");
+        if (bar && !bar.classList.contains("hidden")) {
+            bar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            // If bar is hidden (user not verified), show a temporary message
+            const main = document.querySelector('main');
+            const msg = document.createElement('div');
+            msg.className = 'card p-6 text-center my-4';
+            msg.id = 'community-message';
+            msg.innerHTML = `
+                <div class="text-3xl mb-2">👥</div>
+                <div class="font-semibold text-lg">Community Hub</div>
+                <p class="text-sm text-mute mt-1 max-w-md mx-auto">
+                    The community bar is only visible to verified members.
+                    <br><a href="#/profile" class="text-brand hover:underline">Visit your profile</a> to complete verification.
+                </p>
+            `;
+            // Remove any existing message
+            const oldMsg = document.getElementById('community-message');
+            if (oldMsg) oldMsg.remove();
+            main?.prepend(msg);
+            setTimeout(() => { msg.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100);
+        }
+        // Route to dashboard but keep the scroll behavior
+        $("#view-dashboard").classList.remove("hidden");
+        // Show that we are in community view
+        const current = "/community";
+        $$("#nav .nav-link").forEach(a => a.classList.toggle("active", a.dataset.route === current));
+        document.getElementById("moreBtn")?.classList.toggle("active", true);
+        document.getElementById("moreMenu")?.classList.add("hidden");
+        window.scrollTo({ top: 0, behavior: "instant" });
+        return;
+    }
     
     const current = isProfile ? "/profile" : isPool ? "/pool" : isMore ? "/" + hash.replace(/^\//, "").split("/")[0] : "/";
     $$("#nav .nav-link").forEach(a => a.classList.toggle("active", a.dataset.route === current));
