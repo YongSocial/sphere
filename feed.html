@@ -1840,9 +1840,12 @@ function loadPosts() {
         const freshNewPosts = newPosts.filter(p => !existingIds.has(p.id));
         
         if (freshNewPosts.length > 0 && allPosts.length > 0) {
-          newPostsCount += freshNewPosts.length;
-          document.getElementById('newPostsCount').textContent = newPostsCount;
-          document.getElementById('newPostsBanner').classList.add('show');
+          const othersPosts = freshNewPosts.filter(p => p.userId !== String(PROFILE?.telegramId));
+          if (othersPosts.length > 0) {
+            newPostsCount += othersPosts.length;
+            document.getElementById('newPostsCount').textContent = newPostsCount;
+            document.getElementById('newPostsBanner').classList.add('show');
+          }
         }
         
         // Add new posts to the beginning
@@ -2004,110 +2007,7 @@ function seekPlayer(event, postId) {
   p.elapsed = Math.floor(ratio * totalMs / 100) * 100;
 }
 
-async function downloadPlayerImage(postId) {
-  const vp = document.getElementById('vp-' + postId);
-  if (!vp) return;
-  let images;
-  try { images = JSON.parse(vp.dataset.images || '[]'); } catch(e) { return; }
-  if (!images.length) return;
 
-  // Show toast
-  showToast('⏳ Preparing video download...', 'success');
-
-  const W = 1280, H = 720;
-  const SLIDE_DUR = 5; // seconds
-  const FPS = 30;
-  const FADE_FRAMES = Math.floor(FPS * 0.6); // 0.6s fade
-
-  const canvas = document.createElement('canvas');
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext('2d');
-
-  // Load all images
-  const loadImg = url => new Promise((res, rej) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => res(img);
-    img.onerror = () => rej(new Error('Failed to load: ' + url));
-    img.src = url;
-  });
-
-  let imgs;
-  try { imgs = await Promise.all(images.map(loadImg)); }
-  catch(e) { showToast('❌ Could not load images (CORS). Try hosting on same domain.', 'error'); return; }
-
-  const stream = canvas.captureStream(FPS);
-  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-    ? 'video/webm;codecs=vp9' : 'video/webm';
-  const rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4_000_000 });
-  const chunks = [];
-  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
-
-  rec.onstop = () => {
-    const blob = new Blob(chunks, { type: mimeType });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'yongsocial-video.webm';
-    a.click();
-    showToast('✅ Video downloaded!', 'success');
-  };
-
-  rec.start();
-
-  const drawFrame = (imgA, imgB, alpha) => {
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, W, H);
-
-    // Draw current image (contain)
-    const drawContain = (img, a) => {
-      if (a <= 0) return;
-      ctx.globalAlpha = a;
-      const scale = Math.min(W / img.naturalWidth, H / img.naturalHeight);
-      const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
-      const dx = (W - dw) / 2, dy = (H - dh) / 2;
-      ctx.drawImage(img, dx, dy, dw, dh);
-    };
-
-    drawContain(imgA, 1 - alpha);
-    if (imgB && alpha > 0) drawContain(imgB, alpha);
-    ctx.globalAlpha = 1;
-
-    // Watermark
-    ctx.font = 'bold 22px Inter, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    ctx.textAlign = 'right';
-    ctx.shadowColor = 'rgba(0,0,0,0.8)';
-    ctx.shadowBlur = 6;
-    ctx.fillText('YongSocial', W - 18, 36);
-    ctx.shadowBlur = 0;
-    ctx.textAlign = 'left';
-  };
-
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const totalFrames = images.length * SLIDE_DUR * FPS;
-  let frame = 0;
-
-  for (let i = 0; i < images.length; i++) {
-    const imgA = imgs[i];
-    const imgB = imgs[(i + 1) % images.length];
-    const slideTotalFrames = SLIDE_DUR * FPS;
-
-    for (let f = 0; f < slideTotalFrames; f++) {
-      let alpha = 0;
-      const fadeStart = slideTotalFrames - FADE_FRAMES;
-      if (f >= fadeStart) {
-        alpha = (f - fadeStart) / FADE_FRAMES;
-      }
-      drawFrame(imgA, imgB, alpha);
-      frame++;
-      // Yield to browser every 5 frames
-      if (f % 5 === 0) await sleep(0);
-    }
-  }
-
-  rec.stop();
-}
 
 // ============================================
 // RENDER POSTS
@@ -2183,7 +2083,6 @@ function renderPosts() {
                 <button class="ctrl-btn" id="ppbtn-${postId}" onclick="togglePlayer('${postId}')"><i class="fa-solid fa-pause"></i></button>
                 <span class="time-display" id="td-${postId}">0:00 / ${Math.floor(totalSecs/60)}:${String(totalSecs%60).padStart(2,'0')}</span>
                 <div class="slide-dots" id="sd-${postId}">${dots}</div>
-                <button class="ctrl-btn" onclick="downloadPlayerImage('${postId}')"><i class="fa-solid fa-download"></i></button>
               </div>
             </div>
           </div>`;
