@@ -77,6 +77,7 @@ const TON_CONFIG = {
   .bar-fill{height:100%;background:linear-gradient(90deg,#d4b25a,#22c984);transition:width .6s ease}
   .pulse-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c984;box-shadow:0 0 0 0 rgba(34,201,132,.7);animation:pd 1.6s infinite}
   @keyframes pd{0%{box-shadow:0 0 0 0 rgba(34,201,132,.6)}70%{box-shadow:0 0 0 10px rgba(34,201,132,0)}100%{box-shadow:0 0 0 0 rgba(34,201,132,0)}}
+  .active-range{background:#d4b25a!important;color:#0b1120!important;border-color:#d4b25a!important;font-weight:600!important}
   
   /* Payment Overlay */
   .payment-overlay {
@@ -217,6 +218,63 @@ const TON_CONFIG = {
       <div id="followersTotal" class="text-3xl font-extrabold mt-1">—</div>
       <div class="text-xs mt-1 text-mute">across all platforms</div>
     </div>
+  </section>
+
+  <!-- NET WORTH CHART -->
+  <section class="card p-5" id="networthChartSection">
+    <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
+      <div>
+        <div class="font-semibold">Company Net Worth · Historical</div>
+        <div class="text-xs text-mute mt-0.5">Treasury-recorded snapshots · MA5 · 7-day forecast</div>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <!-- Legend -->
+        <div class="flex items-center gap-4 text-xs text-mute">
+          <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-0.5 bg-brand rounded"></span>Net Worth</span>
+          <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-0.5 bg-blue-400 rounded"></span>MA5</span>
+          <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-0.5 border-t border-dashed border-brand2 rounded" style="border-style:dashed"></span>Forecast</span>
+        </div>
+        <!-- Range buttons -->
+        <div class="flex gap-1" id="nwRangeBtns">
+          <button data-range="all"  class="chip px-2.5 py-1 text-xs nw-range-btn active-range">All</button>
+          <button data-range="30"   class="chip px-2.5 py-1 text-xs nw-range-btn">30d</button>
+          <button data-range="14"   class="chip px-2.5 py-1 text-xs nw-range-btn">14d</button>
+          <button data-range="7"    class="chip px-2.5 py-1 text-xs nw-range-btn">7d</button>
+        </div>
+      </div>
+    </div>
+    <!-- Stats row -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4" id="nwStatsRow">
+      <div class="bg-surface2 rounded-xl px-4 py-3">
+        <div class="text-[10px] uppercase tracking-wider text-mute">All-time High</div>
+        <div id="nwATH" class="text-sm font-bold text-brand mt-0.5">—</div>
+      </div>
+      <div class="bg-surface2 rounded-xl px-4 py-3">
+        <div class="text-[10px] uppercase tracking-wider text-mute">All-time Low</div>
+        <div id="nwATL" class="text-sm font-bold text-danger mt-0.5">—</div>
+      </div>
+      <div class="bg-surface2 rounded-xl px-4 py-3">
+        <div class="text-[10px] uppercase tracking-wider text-mute">7d Forecast</div>
+        <div id="nwForecast" class="text-sm font-bold text-brand2 mt-0.5">—</div>
+      </div>
+      <div class="bg-surface2 rounded-xl px-4 py-3">
+        <div class="text-[10px] uppercase tracking-wider text-mute">Last Updated</div>
+        <div id="nwLastUpdate" class="text-sm font-bold mt-0.5">—</div>
+      </div>
+    </div>
+    <div class="relative" style="height:300px">
+      <canvas id="networthChart"></canvas>
+      <div id="nwChartEmpty" class="absolute inset-0 flex flex-col items-center justify-center text-center hidden">
+        <div class="text-3xl mb-2">📈</div>
+        <div class="font-semibold text-sm">No history yet</div>
+        <p class="text-xs text-mute mt-1 max-w-xs">Chart builds automatically each time the Treasury saves a Net Worth update.</p>
+      </div>
+      <div id="nwChartLoading" class="absolute inset-0 flex items-center justify-center">
+        <div class="skeleton w-full h-full rounded-xl"></div>
+      </div>
+    </div>
+    <!-- Tooltip -->
+    <div id="nwTooltip" class="hidden absolute z-50 pointer-events-none bg-surface border border-line rounded-xl px-4 py-3 text-xs shadow-xl min-w-[160px]"></div>
   </section>
 
   <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -472,7 +530,7 @@ const TON_CONFIG = {
 <!-- ============================================ -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, onSnapshot, serverTimestamp, collection, getDocs, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js';
 
 // ============================================
 // FIREBASE CONFIG
@@ -1640,6 +1698,9 @@ async function loadCrypto() {
     const net = CONFIG.baseNetWorthUSD + cryptoTotal;
     $("#netWorth").textContent = fmt.usd(net);
     $("#netWorthDelta").innerHTML = `Base ${fmt.usd(CONFIG.baseNetWorthUSD)} + crypto <span class="text-brand">${fmt.usd(cryptoTotal)}</span>`;
+
+    // Initialize net worth chart with live computed net worth
+    initNetworthChart(net);
 }
 
 // ============================================
@@ -1831,6 +1892,501 @@ setInterval(() => {
         }
     });
 }, 1000);
+
+// ============================================
+// NET WORTH CHART ENGINE
+// ============================================
+
+let _nwChart = null;
+let _nwAllPoints = [];   // { ts, value, base, crypto } sorted ascending
+let _nwRange = "all";
+
+// ── Fetch history from Firestore (cached per session) ────────────
+async function loadNetworthHistory() {
+    // Session cache (no midnight reset needed — chart just adds points)
+    const sess = sessionStorage.getItem("ys.nwHistory");
+    if (sess) {
+        try { return JSON.parse(sess); } catch {}
+    }
+    try {
+        const q = query(collection(db, "networth_history"), orderBy("recordedAtMs", "asc"), limit(200));
+        const snap = await getDocs(q);
+        const pts = snap.docs.map(d => {
+            const dd = d.data();
+            return {
+                ts:     dd.recordedAtMs || (dd.recordedAt?.toMillis?.() ?? Date.now()),
+                base:   dd.baseNetWorthUSD || 0,
+                // crypto not stored in history; we'll use 0 and note in chart
+                crypto: 0,
+                value:  dd.baseNetWorthUSD || 0,
+            };
+        }).filter(p => p.ts && p.value > 0);
+        sessionStorage.setItem("ys.nwHistory", JSON.stringify(pts));
+        return pts;
+    } catch(e) {
+        console.warn("nwHistory fetch failed", e);
+        return [];
+    }
+}
+
+// ── Simple Random Forest regression in pure JS ───────────────────
+// Uses bootstrap aggregation over decision stumps (depth-1 trees).
+// Features per sample: [returns_1d, returns_3d, ma5_ratio, volatility_5d]
+function buildFeatures(values) {
+    return values.map((v, i) => {
+        const r1  = i >= 1  ? (values[i] - values[i-1]) / (values[i-1] || 1) : 0;
+        const r3  = i >= 3  ? (values[i] - values[i-3]) / (values[i-3] || 1) : r1;
+        const ma5 = i >= 4  ? values.slice(i-4, i+1).reduce((a,b)=>a+b,0)/5 : v;
+        const volatility = i >= 4
+            ? Math.sqrt(values.slice(i-4, i+1).map(x => (x-ma5)**2).reduce((a,b)=>a+b,0)/5) / (ma5||1)
+            : 0;
+        return [r1, r3, ma5 / (v||1), volatility];
+    });
+}
+
+function trainForest(X, y, nTrees = 60) {
+    const n = X.length;
+    if (n < 3) return null;
+    const trees = [];
+    for (let t = 0; t < nTrees; t++) {
+        // Bootstrap sample
+        const idx = Array.from({length: n}, () => Math.floor(Math.random() * n));
+        const Xs = idx.map(i => X[i]);
+        const ys = idx.map(i => y[i]);
+        // Pick a random feature and threshold (depth-1 stump)
+        const fi = Math.floor(Math.random() * X[0].length);
+        const vals = Xs.map(x => x[fi]);
+        const thresh = vals[Math.floor(Math.random() * vals.length)];
+        const left  = ys.filter((_, i) => Xs[i][fi] <= thresh);
+        const right = ys.filter((_, i) => Xs[i][fi] >  thresh);
+        const avg  = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+        trees.push({ fi, thresh, left: avg(left), right: avg(right) });
+    }
+    return trees;
+}
+
+function predictForest(trees, x) {
+    if (!trees) return 0;
+    const preds = trees.map(t => x[t.fi] <= t.thresh ? t.left : t.right);
+    return preds.reduce((a,b)=>a+b,0) / preds.length;
+}
+
+function forecastNetWorth(values, steps = 7) {
+    if (values.length < 5) {
+        // Fallback: simple linear extrapolation
+        const last = values[values.length - 1];
+        const prev = values[values.length - 2] ?? last;
+        const delta = (last - prev) * 0.5; // dampened
+        return Array.from({length: steps}, (_, i) => last + delta * (i + 1));
+    }
+    const X = buildFeatures(values);
+    // Target: next-day return
+    const y = values.slice(1).map((v, i) => (v - values[i]) / (values[i] || 1));
+    const Xtrain = X.slice(0, -1);
+    const trees = trainForest(Xtrain, y);
+
+    const result = [];
+    let runningValues = [...values];
+    for (let s = 0; s < steps; s++) {
+        const xFeat = buildFeatures(runningValues);
+        const lastFeat = xFeat[xFeat.length - 1];
+        const predictedReturn = predictForest(trees, lastFeat);
+        // Dampen forecast aggressively to avoid runaway projections
+        const dampened = Math.max(-0.08, Math.min(0.08, predictedReturn));
+        const next = runningValues[runningValues.length - 1] * (1 + dampened);
+        result.push(Math.max(0, next));
+        runningValues.push(next);
+    }
+    return result;
+}
+
+// ── MA calculator ────────────────────────────────────────────────
+function calcMA(values, period) {
+    return values.map((_, i) =>
+        i < period - 1 ? null : values.slice(i - period + 1, i + 1).reduce((a,b)=>a+b,0) / period
+    );
+}
+
+// ── Build OHLC from points (group by UTC day) ────────────────────
+function buildDailyOHLC(points) {
+    const days = {};
+    points.forEach(p => {
+        const d = new Date(p.ts);
+        const key = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+        if (!days[key]) days[key] = { ts: p.ts, open: p.value, high: p.value, low: p.value, close: p.value, label: d };
+        else {
+            days[key].high  = Math.max(days[key].high,  p.value);
+            days[key].low   = Math.min(days[key].low,   p.value);
+            days[key].close = p.value; // last update of the day
+            if (p.ts < days[key].ts) { days[key].ts = p.ts; days[key].open = p.value; }
+        }
+    });
+    return Object.values(days).sort((a,b)=>a.ts-b.ts);
+}
+
+// ── Render chart ─────────────────────────────────────────────────
+function renderNetworthChart(points, currentNet) {
+    const loading = document.getElementById("nwChartLoading");
+    const empty   = document.getElementById("nwChartEmpty");
+
+    // Merge current live value as a final point
+    const allPts = currentNet > 0
+        ? [...points, { ts: Date.now(), value: currentNet, base: CONFIG.baseNetWorthUSD, crypto: 0 }]
+        : [...points];
+
+    // Deduplicate by minute (keep last)
+    const deduped = [];
+    const seen = new Set();
+    allPts.forEach(p => {
+        const min = Math.floor(p.ts / 60000);
+        if (!seen.has(min)) { seen.add(min); deduped.push(p); }
+    });
+    deduped.sort((a,b) => a.ts - b.ts);
+    _nwAllPoints = deduped;
+
+    if (deduped.length === 0) {
+        loading?.classList.add("hidden");
+        empty?.classList.remove("hidden");
+        updateNetworthStats([], currentNet);
+        return;
+    }
+
+    loading?.classList.add("hidden");
+    empty?.classList.add("hidden");
+
+    renderNetworthChartForRange(_nwRange, currentNet);
+    updateNetworthStats(deduped, currentNet);
+}
+
+function getFilteredPoints(range) {
+    if (range === "all") return _nwAllPoints;
+    const cutoff = Date.now() - parseInt(range) * 86400000;
+    return _nwAllPoints.filter(p => p.ts >= cutoff);
+}
+
+function renderNetworthChartForRange(range, currentNet) {
+    _nwRange = range;
+    const pts = getFilteredPoints(range);
+    if (pts.length === 0 && range !== "all") {
+        // Fall back to all if range has no data
+        return renderNetworthChartForRange("all", currentNet);
+    }
+
+    const ohlc = buildDailyOHLC(pts.length <= 1 ? pts : pts);
+    // If only intraday data, use raw points; if multi-day, use OHLC closes
+    const useRaw = ohlc.length <= 2;
+    const labels = useRaw
+        ? pts.map(p => {
+            const d = new Date(p.ts);
+            return `${d.getUTCMonth()+1}/${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`;
+          })
+        : ohlc.map(o => {
+            const d = new Date(o.ts);
+            return `${d.getUTCMonth()+1}/${d.getUTCDate()}`;
+          });
+    const closes   = useRaw ? pts.map(p => p.value) : ohlc.map(o => o.close);
+    const opens    = useRaw ? pts.map(p => p.value) : ohlc.map(o => o.open);
+    const highs    = useRaw ? pts.map(p => p.value) : ohlc.map(o => o.high);
+    const lows     = useRaw ? pts.map(p => p.value) : ohlc.map(o => o.low);
+
+    const ma5      = calcMA(closes, 5);
+    const forecast = forecastNetWorth(closes, 7);
+
+    // Extend labels + null-pads for history, then append forecast
+    const forecastLabels = Array.from({length: 7}, (_, i) => {
+        const d = new Date(Date.now() + (i+1) * 86400000);
+        return `${d.getUTCMonth()+1}/${d.getUTCDate()}`;
+    });
+    const allLabels  = [...labels, ...forecastLabels];
+    const histLen    = closes.length;
+    const padHistory = arr => [...arr, ...Array(7).fill(null)];
+    const forecastLine = [...Array(histLen - 1).fill(null), closes[histLen - 1], ...forecast];
+
+    const ctx = document.getElementById("networthChart")?.getContext("2d");
+    if (!ctx) return;
+
+    // Destroy previous instance
+    if (_nwChart) { _nwChart.destroy(); _nwChart = null; }
+
+    // Candlestick bars via custom draw (Chart.js bar with floating bars trick)
+    // We draw up/down candles using bar datasets: body + wick
+    const isUp    = closes.map((c, i) => c >= opens[i]);
+    const bodyData = closes.map((c, i) => [Math.min(c, opens[i]), Math.max(c, opens[i])]);
+    const wickHigh = highs;
+    const wickLow  = lows;
+
+    // Gradient for area under the line
+    const grad = ctx.createLinearGradient(0, 0, 0, 280);
+    grad.addColorStop(0, "rgba(212,178,90,0.18)");
+    grad.addColorStop(1, "rgba(212,178,90,0.00)");
+
+    const gradForecast = ctx.createLinearGradient(0, 0, 0, 280);
+    gradForecast.addColorStop(0, "rgba(34,201,132,0.12)");
+    gradForecast.addColorStop(1, "rgba(34,201,132,0.00)");
+
+    const upColor   = "rgba(34,201,132,0.85)";
+    const downColor = "rgba(239,68,68,0.85)";
+
+    _nwChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: allLabels,
+            datasets: [
+                // 0: Candle bodies (floating bar)
+                {
+                    label: "OHLC",
+                    data: [...bodyData, ...Array(7).fill(null)],
+                    backgroundColor: closes.map((c,i) => isUp[i] ? upColor : downColor).concat(Array(7).fill("transparent")),
+                    borderColor:     closes.map((c,i) => isUp[i] ? upColor : downColor).concat(Array(7).fill("transparent")),
+                    borderWidth: 1,
+                    barPercentage: 0.45,
+                    categoryPercentage: 0.7,
+                    order: 3,
+                    yAxisID: "y",
+                },
+                // 1: Net worth line (closes only)
+                {
+                    label: "Net Worth",
+                    type: "line",
+                    data: padHistory(closes),
+                    borderColor: "#d4b25a",
+                    backgroundColor: grad,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: pts => pts.dataIndex === histLen - 1 ? 5 : 0,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: "#d4b25a",
+                    order: 2,
+                    yAxisID: "y",
+                },
+                // 2: MA5 line
+                {
+                    label: "MA5",
+                    type: "line",
+                    data: padHistory(ma5),
+                    borderColor: "rgba(96,165,250,0.85)",
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    fill: false,
+                    tension: 0.3,
+                    borderDash: [],
+                    order: 1,
+                    yAxisID: "y",
+                },
+                // 3: Forecast line
+                {
+                    label: "Forecast",
+                    type: "line",
+                    data: forecastLine,
+                    borderColor: "rgba(34,201,132,0.9)",
+                    backgroundColor: gradForecast,
+                    borderWidth: 2,
+                    borderDash: [5, 4],
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    fill: false,
+                    tension: 0.35,
+                    order: 0,
+                    yAxisID: "y",
+                },
+                // 4: High wicks (line segments rendered as scatter)
+                {
+                    label: "High",
+                    type: "line",
+                    data: [...wickHigh.map((h,i) => ({ x: labels[i], y: h })), ...Array(7).fill(null)],
+                    borderColor: "transparent",
+                    pointRadius: 0,
+                    fill: false,
+                    showLine: false,
+                    yAxisID: "y",
+                    order: 4,
+                },
+                // 5: Low wicks
+                {
+                    label: "Low",
+                    type: "line",
+                    data: [...wickLow.map((l,i) => ({ x: labels[i], y: l })), ...Array(7).fill(null)],
+                    borderColor: "transparent",
+                    pointRadius: 0,
+                    fill: false,
+                    showLine: false,
+                    yAxisID: "y",
+                    order: 5,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            animation: { duration: 400 },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    enabled: false,
+                    external: nwExternalTooltip,
+                },
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        color: "#8a93a8",
+                        maxRotation: 0,
+                        autoSkipPadding: 20,
+                        maxTicksLimit: 10,
+                        font: { size: 10 },
+                    },
+                    border: { color: "#1f2940" },
+                },
+                y: {
+                    position: "right",
+                    grid: { color: "rgba(31,41,64,0.6)" },
+                    ticks: {
+                        color: "#8a93a8",
+                        font: { size: 10 },
+                        callback: v => "$" + fmt.abbrev(v),
+                    },
+                    border: { color: "#1f2940" },
+                },
+            },
+        },
+        plugins: [{
+            // Draw wicks manually on top of bars
+            id: "nwWicks",
+            afterDatasetsDraw(chart) {
+                const ds0 = chart.getDatasetMeta(0);
+                const ds4 = chart.getDatasetMeta(4); // highs
+                const ds5 = chart.getDatasetMeta(5); // lows
+                const ctx2 = chart.ctx;
+                ctx2.save();
+                ctx2.lineWidth = 1.5;
+                closes.forEach((c, i) => {
+                    const bar  = ds0.data[i];
+                    if (!bar) return;
+                    const cx   = bar.x;
+                    const high = ds4.data[i]?.y;
+                    const low  = ds5.data[i]?.y;
+                    const barTop    = Math.min(bar.y, bar.base ?? bar.y);
+                    const barBottom = Math.max(bar.y, bar.base ?? bar.y);
+                    ctx2.strokeStyle = isUp[i] ? upColor : downColor;
+                    ctx2.beginPath();
+                    if (high != null) { ctx2.moveTo(cx, barTop);    ctx2.lineTo(cx, high); }
+                    if (low  != null) { ctx2.moveTo(cx, barBottom); ctx2.lineTo(cx, low);  }
+                    ctx2.stroke();
+                });
+                // Forecast zone shading
+                const meta1 = chart.getDatasetMeta(1); // net worth line
+                const forecastStartIdx = histLen; // first forecast label index
+                const fStart = meta1.data[forecastStartIdx - 1];
+                const fEnd   = meta1.data[allLabels.length - 1];
+                if (fStart && fEnd) {
+                    ctx2.fillStyle = "rgba(34,201,132,0.04)";
+                    ctx2.fillRect(fStart.x, chart.chartArea.top, fEnd.x - fStart.x, chart.chartArea.bottom - chart.chartArea.top);
+                    // Vertical divider line
+                    ctx2.strokeStyle = "rgba(34,201,132,0.25)";
+                    ctx2.setLineDash([4,4]);
+                    ctx2.beginPath();
+                    ctx2.moveTo(fStart.x, chart.chartArea.top);
+                    ctx2.lineTo(fStart.x, chart.chartArea.bottom);
+                    ctx2.stroke();
+                    ctx2.setLineDash([]);
+                    // "FORECAST" label
+                    ctx2.fillStyle = "rgba(34,201,132,0.6)";
+                    ctx2.font = "9px Inter, sans-serif";
+                    ctx2.fillText("FORECAST", fStart.x + 6, chart.chartArea.top + 14);
+                }
+                ctx2.restore();
+            }
+        }],
+    });
+
+    // Range button state
+    document.querySelectorAll(".nw-range-btn").forEach(b => {
+        b.classList.toggle("active-range", b.dataset.range === range);
+    });
+}
+
+function nwExternalTooltip(context) {
+    const tooltip = document.getElementById("nwTooltip");
+    if (!tooltip) return;
+    const { chart, tooltip: t } = context;
+    if (t.opacity === 0) { tooltip.classList.add("hidden"); return; }
+
+    const i = t.dataPoints?.[0]?.dataIndex;
+    if (i == null) return;
+
+    const pts = getFilteredPoints(_nwRange);
+    const ohlc = buildDailyOHLC(pts.length <= 2 ? pts : pts);
+    const useRaw = ohlc.length <= 2;
+    const dataSource = useRaw ? pts : ohlc;
+    const d = dataSource[i];
+    if (!d) { tooltip.classList.add("hidden"); return; }
+
+    const label = t.dataPoints[0]?.label || "";
+    const close = useRaw ? d.value : d.close;
+    const open  = useRaw ? d.value : d.open;
+    const high  = useRaw ? d.value : d.high;
+    const low   = useRaw ? d.value : d.low;
+    const chg   = open ? ((close - open) / open * 100) : 0;
+    const ma5pts = calcMA((useRaw ? pts.map(p=>p.value) : ohlc.map(o=>o.close)), 5);
+    const ma5v  = ma5pts[i];
+
+    tooltip.classList.remove("hidden");
+    tooltip.innerHTML = `
+        <div class="font-semibold text-white mb-2">${label}</div>
+        <div class="space-y-1">
+            <div class="flex justify-between gap-4"><span class="text-mute">Net Worth</span><span class="font-bold text-brand">${fmt.usd(close)}</span></div>
+            ${!useRaw ? `
+            <div class="flex justify-between gap-4"><span class="text-mute">Open</span><span>${fmt.usd(open)}</span></div>
+            <div class="flex justify-between gap-4"><span class="text-mute">High</span><span class="text-brand2">${fmt.usd(high)}</span></div>
+            <div class="flex justify-between gap-4"><span class="text-mute">Low</span><span class="text-danger">${fmt.usd(low)}</span></div>` : ""}
+            <div class="flex justify-between gap-4"><span class="text-mute">Change</span><span class="${chg>=0?'text-brand2':'text-danger'}">${chg>=0?'+':''}${chg.toFixed(2)}%</span></div>
+            ${ma5v != null ? `<div class="flex justify-between gap-4"><span class="text-mute">MA5</span><span class="text-blue-400">${fmt.usd(ma5v)}</span></div>` : ""}
+        </div>`;
+
+    const pos = chart.canvas.getBoundingClientRect();
+    const chartPos = chart.canvas.closest(".relative")?.getBoundingClientRect() ?? pos;
+    const left  = pos.left - chartPos.left + t.caretX;
+    const top   = pos.top  - chartPos.top  + t.caretY;
+    const flip  = left > (chartPos.width / 2);
+    tooltip.style.left  = flip ? (left - tooltip.offsetWidth - 12) + "px" : (left + 12) + "px";
+    tooltip.style.top   = Math.max(0, top - 20) + "px";
+}
+
+function updateNetworthStats(pts, currentNet) {
+    const vals = [...pts.map(p => p.value), currentNet].filter(v => v > 0);
+    if (vals.length === 0) return;
+    const ath = Math.max(...vals);
+    const atl = Math.min(...vals);
+    const fc  = forecastNetWorth(vals, 7);
+    const fc7 = fc[fc.length - 1];
+    const fcChg = vals.length ? ((fc7 - vals[vals.length - 1]) / (vals[vals.length - 1] || 1) * 100) : 0;
+
+    document.getElementById("nwATH").textContent        = fmt.usd(ath);
+    document.getElementById("nwATL").textContent        = fmt.usd(atl);
+    document.getElementById("nwForecast").textContent   = `${fmt.usd(fc7)} (${fcChg >= 0 ? "+" : ""}${fcChg.toFixed(1)}%)`;
+    const last = pts[pts.length - 1];
+    if (last) {
+        const d = new Date(last.ts);
+        document.getElementById("nwLastUpdate").textContent = `${d.getUTCMonth()+1}/${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2,"0")}:${String(d.getUTCMinutes()).padStart(2,"0")} UTC`;
+    }
+}
+
+async function initNetworthChart(currentNet) {
+    const pts = await loadNetworthHistory();
+    renderNetworthChart(pts, currentNet);
+}
+
+// Range button handlers
+document.querySelectorAll(".nw-range-btn").forEach(b => {
+    b.addEventListener("click", () => {
+        const currentNet = parseFloat(document.getElementById("netWorth")?.textContent?.replace(/[^0-9.]/g,"")) || 0;
+        renderNetworthChartForRange(b.dataset.range, currentNet);
+    });
+});
 
 // ============================================
 // BOOT
