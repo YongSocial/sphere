@@ -21,6 +21,7 @@
       color: #e7ecf5;
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
       min-height: 100vh;
+      overflow-x: hidden;
     }
     a { color: inherit; text-decoration: none; }
 
@@ -306,6 +307,27 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* New Posts Banner */
+    .new-posts-banner {
+      display: none;
+      background: #d4b25a;
+      color: #0b1120;
+      padding: 0.6rem 1.5rem;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      border-bottom: 1px solid #1f2940;
+      position: sticky;
+      top: 0;
+      z-index: 8;
+    }
+    .new-posts-banner:hover {
+      background: #c9a54a;
+    }
+    .new-posts-banner.show { display: block; }
+
     /* Posts */
     .tweet {
       display: flex;
@@ -316,7 +338,7 @@
     .tweet .pfp {
       width: 40px;
       height: 40px;
-      border-radius: 12px;
+      border-radius: 50%;
       flex-shrink: 0;
       display: flex;
       align-items: center;
@@ -325,11 +347,11 @@
       background: #121a2d;
       border: 1px solid #1f2940;
       font-size: 0.9rem;
+      overflow: hidden;
     }
     .tweet .pfp img {
       width: 100%;
       height: 100%;
-      border-radius: 12px;
       object-fit: cover;
     }
     .tweet .content { flex: 1; min-width: 0; }
@@ -355,8 +377,170 @@
       margin-top: 0.3rem;
       line-height: 1.4;
       font-size: 0.95rem;
+      word-wrap: break-word;
     }
 
+    /* Post Images Grid */
+    .post-images {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+      margin-top: 0.6rem;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+    .post-images .image-wrapper {
+      position: relative;
+      aspect-ratio: 1;
+      overflow: hidden;
+      cursor: pointer;
+      background: #0f1626;
+    }
+    .post-images .image-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.2s;
+    }
+    .post-images .image-wrapper img:hover {
+      transform: scale(1.02);
+    }
+    .post-images .image-wrapper:first-child {
+      grid-column: span 1;
+    }
+    .post-images .image-wrapper:only-child {
+      grid-column: span 2;
+    }
+    .post-images .play-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.4);
+      opacity: 0;
+      transition: opacity 0.3s;
+      cursor: pointer;
+    }
+    .post-images .image-wrapper:hover .play-overlay {
+      opacity: 1;
+    }
+    .post-images .play-overlay .play-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(212, 178, 90, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      color: #0b1120;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .post-images .play-overlay .play-btn:hover {
+      transform: scale(1.1);
+    }
+    .post-images .image-count-badge {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+
+    /* Slideshow Modal */
+    .slideshow-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(7, 11, 20, 0.98);
+      backdrop-filter: blur(20px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .slideshow-overlay.active { display: flex; }
+    .slideshow-container {
+      max-width: 900px;
+      width: 100%;
+      max-height: 90vh;
+      position: relative;
+    }
+    .slideshow-container img {
+      width: 100%;
+      height: auto;
+      max-height: 80vh;
+      object-fit: contain;
+      border-radius: 12px;
+    }
+    .slideshow-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .slideshow-nav:hover { background: rgba(255,255,255,0.2); }
+    .slideshow-nav.prev { left: -50px; }
+    .slideshow-nav.next { right: -50px; }
+    .slideshow-close {
+      position: absolute;
+      top: -50px;
+      right: 0;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1.8rem;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    .slideshow-close:hover { opacity: 1; }
+    .slideshow-dots {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .slideshow-dots .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #5a6378;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+      border: none;
+    }
+    .slideshow-dots .dot.active {
+      background: #d4b25a;
+      transform: scale(1.3);
+    }
+    .slideshow-counter {
+      color: #8a93a8;
+      text-align: center;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Reactions */
     .actions-row {
       display: flex;
       align-items: center;
@@ -425,6 +609,155 @@
     .creator-support .diamond { font-size: 0.9rem; line-height: 1; }
     .creator-support .value { font-weight: 600; color: #e7ecf5; letter-spacing: 0.01em; }
 
+    /* Post Popup */
+    .post-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(7, 11, 20, 0.95);
+      backdrop-filter: blur(12px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .post-overlay.active { display: flex; }
+    .post-modal {
+      max-width: 560px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .post-modal .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #1f2940;
+    }
+    .post-modal .modal-header h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    .post-modal .modal-header .close-btn {
+      background: none;
+      border: none;
+      color: #8a93a8;
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .post-modal .modal-header .close-btn:hover { color: #e7ecf5; }
+    .post-modal textarea {
+      width: 100%;
+      min-height: 120px;
+      background: #121a2d;
+      border: 1px solid #1f2940;
+      border-radius: 14px;
+      padding: 0.85rem 1rem;
+      font-size: 0.95rem;
+      font-family: 'Inter', sans-serif;
+      color: #e7ecf5;
+      outline: none;
+      transition: border-color 0.2s;
+      resize: vertical;
+    }
+    .post-modal textarea:focus { border-color: #d4b25a; }
+    .post-modal textarea::placeholder { color: #5a6378; }
+
+    .image-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .image-preview-item {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #121a2d;
+      border: 1px solid #1f2940;
+    }
+    .image-preview-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .image-preview-item .remove-btn {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.9);
+      border: none;
+      color: #fff;
+      font-size: 0.6rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .image-preview-item .remove-btn:hover { background: #ef4444; }
+
+    .upload-progress {
+      margin-top: 0.75rem;
+      display: none;
+    }
+    .upload-progress.show { display: block; }
+    .upload-progress .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: #1f2940;
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+    .upload-progress .progress-bar .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #d4b25a, #22c984);
+      border-radius: 9999px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+    .upload-progress .progress-text {
+      font-size: 0.75rem;
+      color: #8a93a8;
+      margin-top: 0.3rem;
+      text-align: center;
+    }
+
+    .post-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+    .post-actions .btn-secondary {
+      background: #121a2d;
+      border: 1px solid #1f2940;
+      color: #e7ecf5;
+      border-radius: 9999px;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .post-actions .btn-secondary:hover {
+      border-color: #d4b25a;
+    }
+    .post-actions .btn-secondary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Widgets */
     .widgets { padding: 1.5rem 1rem; background: #070b14; }
     .widget {
       background: #0f1626;
@@ -491,28 +824,16 @@
       font-weight: 700;
       color: #0b1120;
       flex-shrink: 0;
+      overflow: hidden;
     }
     .profile-avatar img {
       width: 100%;
       height: 100%;
-      border-radius: 50%;
       object-fit: cover;
     }
-    .profile-info h2 {
-      font-size: 1.5rem;
-      font-weight: 700;
-    }
-    .profile-info .handle {
-      color: #8a93a8;
-      font-size: 0.95rem;
-      margin-top: 0.25rem;
-    }
-    .profile-info .bio {
-      color: #8a93a8;
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-      max-width: 400px;
-    }
+    .profile-info h2 { font-size: 1.5rem; font-weight: 700; }
+    .profile-info .handle { color: #8a93a8; font-size: 0.95rem; margin-top: 0.25rem; }
+    .profile-info .bio { color: #8a93a8; font-size: 0.9rem; margin-top: 0.5rem; max-width: 400px; }
     .profile-details {
       background: #0f1626;
       border: 1px solid #1f2940;
@@ -676,6 +997,16 @@
     .wallet-actions .btn-skip:hover { color: #e7ecf5; }
     .wallet-footer { font-size: 0.7rem; color: #5a6378; text-align: center; margin-top: 0.75rem; }
 
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #8a93a8;
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+    .empty-state h3 { font-size: 1.2rem; font-weight: 700; color: #e7ecf5; margin-bottom: 0.5rem; }
+    .empty-state p { font-size: 0.9rem; max-width: 400px; margin: 0 auto; }
+
     /* Responsive */
     @media (max-width: 1024px) {
       .app-shell { grid-template-columns: 1fr; }
@@ -685,7 +1016,6 @@
       .bottomnav { display: flex; }
       .fab { display: flex; }
       main { padding-bottom: 5rem; }
-      .ticker-wrapper .ticker-header { padding: 0 1rem; }
       .tweet { padding: 0.75rem 1rem; }
       .profile-header { flex-direction: column; text-align: center; }
       .profile-info .bio { margin-left: auto; margin-right: auto; }
@@ -693,6 +1023,9 @@
       .reactions { gap: 0.3rem; }
       .reaction-btn { font-size: 0.7rem; padding: 0.15rem 0.4rem; }
       .reaction-btn .emoji { font-size: 0.85rem; }
+      .slideshow-nav.prev { left: 10px; }
+      .slideshow-nav.next { right: 10px; }
+      .slideshow-close { top: -40px; }
     }
     @media (min-width: 1024px) {
       .bottomnav, .fab { display: none !important; }
@@ -722,6 +1055,67 @@
 </header>
 
 <!-- ============================================ -->
+<!-- TOAST -->
+<!-- ============================================ -->
+<div id="toast" class="toast">
+  <span id="toastIcon" class="icon">✅</span>
+  <span id="toastMessage">Success!</span>
+</div>
+
+<!-- ============================================ -->
+<!-- NEW POSTS BANNER -->
+<!-- ============================================ -->
+<div id="newPostsBanner" class="new-posts-banner" onclick="loadNewPosts()">
+  🔄 <span id="newPostsCount">0</span> new posts - Tap to load
+</div>
+
+<!-- ============================================ -->
+<!-- POST POPUP -->
+<!-- ============================================ -->
+<div id="postOverlay" class="post-overlay">
+  <div class="post-modal card p-6">
+    <div class="modal-header">
+      <h2>Create Post</h2>
+      <button class="close-btn" onclick="closePostPopup()">✕</button>
+    </div>
+    
+    <textarea id="postContent" placeholder="What's on your mind?" maxlength="2000"></textarea>
+    <div class="text-xs text-mute mt-1 text-right"><span id="charCount">0</span>/2000</div>
+    
+    <div id="imagePreviewGrid" class="image-preview-grid"></div>
+    
+    <div id="uploadProgress" class="upload-progress">
+      <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+      <div id="progressText" class="progress-text">Uploading 0/0</div>
+    </div>
+    
+    <div class="post-actions">
+      <button class="btn-secondary" onclick="selectImages()">
+        <i class="fa-solid fa-image"></i> Add Images (max 5)
+      </button>
+      <button id="postSubmitBtn" class="btn-brand" onclick="submitPost()" style="margin-left:auto;">
+        <i class="fa-solid fa-paper-plane"></i> Post
+      </button>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFileSelect(event)" />
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDESHOW OVERLAY -->
+<!-- ============================================ -->
+<div id="slideshowOverlay" class="slideshow-overlay" onclick="closeSlideshow(event)">
+  <div class="slideshow-container" onclick="event.stopPropagation()">
+    <button class="slideshow-close" onclick="closeSlideshow()">✕</button>
+    <button class="slideshow-nav prev" onclick="changeSlide(-1)">‹</button>
+    <img id="slideshowImage" src="" alt="Slideshow" />
+    <button class="slideshow-nav next" onclick="changeSlide(1)">›</button>
+    <div class="slideshow-dots" id="slideshowDots"></div>
+    <div class="slideshow-counter" id="slideshowCounter">1 / 1</div>
+  </div>
+</div>
+
+<!-- ============================================ -->
 <!-- WALLET ADDRESS POPUP -->
 <!-- ============================================ -->
 <div id="walletOverlay" class="wallet-overlay">
@@ -745,14 +1139,6 @@
 </div>
 
 <!-- ============================================ -->
-<!-- TOAST -->
-<!-- ============================================ -->
-<div id="toast" class="toast">
-  <span id="toastIcon" class="icon">✅</span>
-  <span id="toastMessage">Success!</span>
-</div>
-
-<!-- ============================================ -->
 <!-- MAIN APP -->
 <!-- ============================================ -->
 <div class="app-shell">
@@ -763,6 +1149,9 @@
     <button class="nav-item active" onclick="switchView('feed')"><i class="fa-solid fa-house"></i> Home</button>
     <button class="nav-item" onclick="switchView('profile')"><i class="fa-regular fa-user"></i> Profile</button>
     <button class="nav-item" onclick="window.location.href='https://yongsocial.github.io/sphere/'"><i class="fa-solid fa-arrow-left"></i> Back to App</button>
+    <button class="nav-item" onclick="openPostPopup()" style="color:#d4b25a;border:1px solid #d4b25a;margin-top:0.5rem;">
+      <i class="fa-solid fa-pen"></i> Post
+    </button>
 
     <div class="sidebar-profile" id="sidebarProfile">
       <div id="sidebarAvatar" class="avatar">Y</div>
@@ -852,7 +1241,7 @@
 </div>
 
 <!-- MOBILE FAB -->
-<button class="fab"><i class="fa-solid fa-feather"></i></button>
+<button class="fab" onclick="openPostPopup()"><i class="fa-solid fa-feather"></i></button>
 
 <!-- MOBILE BOTTOM NAV -->
 <nav class="bottomnav">
@@ -885,6 +1274,13 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 
 // ============================================
+// CONSTANTS
+// ============================================
+const IMGBB_API_KEY = '1847c509e303548abdab86c734a109b2';
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const MAX_IMAGES = 5;
+
+// ============================================
 // STATE
 // ============================================
 let PROFILE = null;
@@ -892,9 +1288,14 @@ let TON_PRICE = 2.50;
 let userWalletAddress = null;
 let currentUser = null;
 let cryptoData = [];
-
-// Post reactions state
-const postReactions = {};
+let allPosts = [];
+let postsCache = { data: [], timestamp: 0 };
+let selectedFiles = [];
+let isSubmitting = false;
+let newPostsCount = 0;
+let unsubscribePosts = null;
+let slideshowImages = [];
+let slideshowIndex = 0;
 
 // ============================================
 // VIEW SWITCHING
@@ -1099,6 +1500,264 @@ function renderTicker() {
 }
 
 // ============================================
+// POST FUNCTIONS
+// ============================================
+function openPostPopup() {
+  document.getElementById('postOverlay').classList.add('active');
+  document.getElementById('postContent').value = '';
+  document.getElementById('charCount').textContent = '0';
+  selectedFiles = [];
+  document.getElementById('imagePreviewGrid').innerHTML = '';
+  document.getElementById('uploadProgress').classList.remove('show');
+  document.getElementById('postSubmitBtn').disabled = false;
+  isSubmitting = false;
+}
+
+function closePostPopup() {
+  document.getElementById('postOverlay').classList.remove('active');
+}
+
+function selectImages() {
+  document.getElementById('fileInput').click();
+}
+
+function handleFileSelect(event) {
+  const files = event.target.files;
+  const remaining = MAX_IMAGES - selectedFiles.length;
+  
+  if (files.length > remaining) {
+    showToast(`You can only select ${remaining} more image${remaining > 1 ? 's' : ''}.`, 'error');
+    return;
+  }
+  
+  for (let file of files) {
+    if (file.size > 32 * 1024 * 1024) {
+      showToast('Image too large (max 32MB).', 'error');
+      continue;
+    }
+    selectedFiles.push(file);
+  }
+  
+  renderImagePreviews();
+  event.target.value = '';
+}
+
+function renderImagePreviews() {
+  const grid = document.getElementById('imagePreviewGrid');
+  grid.innerHTML = selectedFiles.map((file, index) => `
+    <div class="image-preview-item">
+      <img src="${URL.createObjectURL(file)}" alt="Preview ${index + 1}" />
+      <button class="remove-btn" onclick="removeImage(${index})">✕</button>
+    </div>
+  `).join('');
+}
+
+function removeImage(index) {
+  selectedFiles.splice(index, 1);
+  renderImagePreviews();
+}
+
+// Character counter
+document.getElementById('postContent').addEventListener('input', function() {
+  document.getElementById('charCount').textContent = this.value.length;
+});
+
+// ============================================
+// IMAGE UPLOAD TO IMGBB
+// ============================================
+async function uploadImageToImgBB(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+      try {
+        const base64 = e.target.result.split(',')[1];
+        const formData = new FormData();
+        formData.append('key', IMGBB_API_KEY);
+        formData.append('image', base64);
+        
+        const response = await fetch('https://api.imgbb.com/1/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          resolve(data.data.url);
+        } else {
+          reject(new Error(data.error?.message || 'Upload failed'));
+        }
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ============================================
+// SUBMIT POST
+// ============================================
+async function submitPost() {
+  if (isSubmitting) return;
+  
+  const content = document.getElementById('postContent').value.trim();
+  if (!content && selectedFiles.length === 0) {
+    showToast('Please write something or add an image.', 'error');
+    return;
+  }
+  
+  if (!PROFILE) {
+    showToast('Profile not loaded. Please try again.', 'error');
+    return;
+  }
+  
+  isSubmitting = true;
+  const submitBtn = document.getElementById('postSubmitBtn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = '⏳ Posting...';
+  
+  const progressContainer = document.getElementById('uploadProgress');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+  
+  const imageUrls = [];
+  
+  if (selectedFiles.length > 0) {
+    progressContainer.classList.add('show');
+    let uploaded = 0;
+    
+    for (let file of selectedFiles) {
+      progressText.textContent = `Uploading ${uploaded + 1}/${selectedFiles.length}`;
+      progressFill.style.width = `${(uploaded / selectedFiles.length) * 100}%`;
+      
+      try {
+        const url = await uploadImageToImgBB(file);
+        imageUrls.push(url);
+        uploaded++;
+        progressFill.style.width = `${(uploaded / selectedFiles.length) * 100}%`;
+      } catch (error) {
+        console.error('Upload error:', error);
+        showToast(`Failed to upload image: ${error.message}`, 'error');
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = '<i class="fa-solid fa-paper-plane"></i> Post';
+        progressContainer.classList.remove('show');
+        return;
+      }
+    }
+    progressText.textContent = `Uploaded ${selectedFiles.length}/${selectedFiles.length} ✅`;
+    progressFill.style.width = '100%';
+  }
+  
+  try {
+    const postData = {
+      userId: String(PROFILE.telegramId),
+      author: {
+        name: PROFILE.displayName || 'Yong User',
+        handle: PROFILE.username ? '@' + PROFILE.username : 'tg_' + PROFILE.telegramId,
+        pfp: PROFILE.photoUrl || (PROFILE.displayName || PROFILE.firstName || 'Y').slice(0, 1).toUpperCase(),
+        wallet: PROFILE.walletAddress || null
+      },
+      content: content,
+      imageUrls: imageUrls,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      reactions: {
+        like: 0,
+        dislike: 0,
+        celebrate: 0,
+        angry: 0,
+        diamond: 0
+      }
+    };
+    
+    await db.collection('posts').add(postData);
+    
+    showToast('Post created successfully! 🎉', 'success');
+    closePostPopup();
+    
+  } catch (error) {
+    console.error('Post error:', error);
+    showToast('Failed to create post: ' + error.message, 'error');
+  } finally {
+    isSubmitting = false;
+    submitBtn.disabled = false;
+    submitBtn.textContent = '<i class="fa-solid fa-paper-plane"></i> Post';
+    progressContainer.classList.remove('show');
+  }
+}
+
+// ============================================
+// LOAD POSTS FROM FIRESTORE
+// ============================================
+function loadPosts() {
+  // Check cache first
+  const now = Date.now();
+  if (postsCache.data.length > 0 && (now - postsCache.timestamp) < CACHE_TTL) {
+    allPosts = postsCache.data;
+    renderPosts();
+    return;
+  }
+  
+  // Set up real-time listener
+  if (unsubscribePosts) {
+    unsubscribePosts();
+  }
+  
+  unsubscribePosts = db.collection('posts')
+    .orderBy('createdAt', 'desc')
+    .onSnapshot((snapshot) => {
+      const newPosts = [];
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const data = change.doc.data();
+          const post = {
+            id: change.doc.id,
+            ...data,
+            createdAt: data.createdAt?.toMillis?.() || Date.now()
+          };
+          newPosts.push(post);
+        }
+      });
+      
+      // Check if we have new posts
+      if (newPosts.length > 0) {
+        const existingIds = new Set(allPosts.map(p => p.id));
+        const freshNewPosts = newPosts.filter(p => !existingIds.has(p.id));
+        
+        if (freshNewPosts.length > 0 && allPosts.length > 0) {
+          newPostsCount += freshNewPosts.length;
+          document.getElementById('newPostsCount').textContent = newPostsCount;
+          document.getElementById('newPostsBanner').classList.add('show');
+        }
+        
+        // Add new posts to the beginning
+        allPosts = [...newPosts, ...allPosts];
+      }
+      
+      // Update cache
+      postsCache.data = allPosts;
+      postsCache.timestamp = Date.now();
+      
+      renderPosts();
+    }, (error) => {
+      console.error('Posts listener error:', error);
+    });
+}
+
+function loadNewPosts() {
+  newPostsCount = 0;
+  document.getElementById('newPostsBanner').classList.remove('show');
+  
+  // Force refresh cache
+  postsCache.timestamp = 0;
+  loadPosts();
+  
+  // Scroll to top
+  document.querySelector('.feed-col').scrollTop = 0;
+}
+
+// ============================================
 // REACTION HANDLERS
 // ============================================
 const REACTION_EMOJIS = {
@@ -1110,50 +1769,195 @@ const REACTION_EMOJIS = {
 };
 
 function handleReaction(postId, reactionKey) {
-  if (!postReactions[postId]) {
-    postReactions[postId] = {
-      like: 0,
-      dislike: 0,
-      celebrate: 0,
-      angry: 0,
-      diamond: 0,
-      userReaction: null
-    };
+  if (!PROFILE) {
+    showToast('Please sign in to react.', 'error');
+    return;
   }
   
-  const post = postReactions[postId];
-  
-  // If user already reacted with the same reaction, remove it (toggle off)
-  if (post.userReaction === reactionKey) {
-    post[reactionKey] = Math.max(0, post[reactionKey] - 1);
-    post.userReaction = null;
-  } else {
-    // If user had a different reaction, remove that one first
-    if (post.userReaction && post[post.userReaction] > 0) {
-      post[post.userReaction] = Math.max(0, post[post.userReaction] - 1);
-    }
-    post[reactionKey] = (post[reactionKey] || 0) + 1;
-    post.userReaction = reactionKey;
-  }
-  
-  updateReactionUI(postId);
-}
-
-function updateReactionUI(postId) {
-  const post = postReactions[postId];
+  const post = allPosts.find(p => p.id === postId);
   if (!post) return;
   
-  const container = document.querySelector(`[data-post="${postId}"] .reactions`);
+  // Check if user already reacted
+  const userReactionKey = `userReaction_${PROFILE.telegramId}`;
+  const currentReaction = post[userReactionKey] || null;
+  
+  // Update local state
+  if (currentReaction === reactionKey) {
+    // Remove reaction (toggle off)
+    post.reactions[reactionKey] = Math.max(0, post.reactions[reactionKey] - 1);
+    delete post[userReactionKey];
+  } else {
+    // Remove previous reaction if any
+    if (currentReaction && post.reactions[currentReaction] > 0) {
+      post.reactions[currentReaction] = Math.max(0, post.reactions[currentReaction] - 1);
+    }
+    post.reactions[reactionKey] = (post.reactions[reactionKey] || 0) + 1;
+    post[userReactionKey] = reactionKey;
+  }
+  
+  // Update UI
+  renderPosts();
+  
+  // Update Firestore
+  db.collection('posts').doc(postId).update({
+    reactions: post.reactions
+  }).catch(error => {
+    console.error('Reaction update error:', error);
+    // Revert on error
+    loadPosts();
+  });
+}
+
+// ============================================
+// SLIDESHOW
+// ============================================
+function openSlideshow(images, index) {
+  slideshowImages = images;
+  slideshowIndex = index;
+  document.getElementById('slideshowOverlay').classList.add('active');
+  updateSlideshow();
+}
+
+function closeSlideshow(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('slideshowOverlay').classList.remove('active');
+}
+
+function changeSlide(direction) {
+  slideshowIndex = (slideshowIndex + direction + slideshowImages.length) % slideshowImages.length;
+  updateSlideshow();
+}
+
+function updateSlideshow() {
+  const img = document.getElementById('slideshowImage');
+  img.src = slideshowImages[slideshowIndex];
+  
+  const dots = document.getElementById('slideshowDots');
+  dots.innerHTML = slideshowImages.map((_, i) => `
+    <button class="dot ${i === slideshowIndex ? 'active' : ''}" onclick="slideshowIndex=${i};updateSlideshow();"></button>
+  `).join('');
+  
+  document.getElementById('slideshowCounter').textContent = `${slideshowIndex + 1} / ${slideshowImages.length}`;
+}
+
+// Keyboard navigation for slideshow
+document.addEventListener('keydown', function(e) {
+  if (!document.getElementById('slideshowOverlay').classList.contains('active')) return;
+  if (e.key === 'ArrowLeft') changeSlide(-1);
+  if (e.key === 'ArrowRight') changeSlide(1);
+  if (e.key === 'Escape') closeSlideshow();
+});
+
+// ============================================
+// RENDER POSTS
+// ============================================
+function renderPosts() {
+  const container = document.getElementById('postsContainer');
   if (!container) return;
   
-  const buttons = container.querySelectorAll('.reaction-btn');
-  buttons.forEach(btn => {
-    const key = btn.dataset.reaction;
-    const count = post[key] || 0;
-    const countEl = btn.querySelector('.count');
-    if (countEl) countEl.textContent = count > 0 ? count : '';
-    btn.classList.toggle('active', post.userReaction === key);
-  });
+  if (allPosts.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">📝</div>
+        <h3>No posts yet</h3>
+        <p>Be the first to share something with the Yong Social community!</p>
+        <button class="btn-brand" style="margin-top:1rem;" onclick="openPostPopup()">Create Post</button>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = allPosts.map(post => {
+    const reactions = post.reactions || { like: 0, dislike: 0, celebrate: 0, angry: 0, diamond: 0 };
+    const userReaction = post[`userReaction_${PROFILE?.telegramId}`] || null;
+    const images = post.imageUrls || [];
+    const hasMultipleImages = images.length > 1;
+    
+    return `
+    <article class="tweet" data-post="${post.id}">
+      <div class="pfp">
+        ${post.author?.pfp && post.author.pfp.startsWith('http') 
+          ? `<img src="${post.author.pfp}" alt="" />` 
+          : (post.author?.pfp || 'Y')}
+      </div>
+      <div class="content">
+        <div class="head">
+          <span class="name">${post.author?.name || 'Unknown'}</span>
+          <span class="handle">${post.author?.handle || '@unknown'}</span>
+          <span class="time">· ${timeAgo(post.createdAt)}</span>
+          <span class="right"><i class="fa-solid fa-ellipsis-vertical"></i></span>
+        </div>
+        ${post.content ? `<div class="text">${post.content.replace(/\n/g, '<br>')}</div>` : ''}
+        
+        ${images.length > 0 ? `
+          <div class="post-images">
+            ${images.map((img, idx) => `
+              <div class="image-wrapper" onclick="${images.length > 1 ? `openSlideshow(images, ${idx})` : `window.open('${img}', '_blank')`}">
+                <img src="${img}" alt="Post image ${idx + 1}" loading="lazy" />
+                ${hasMultipleImages && idx === 0 ? `
+                  <div class="play-overlay" onclick="event.stopPropagation();openSlideshow(images, 0)">
+                    <button class="play-btn"><i class="fa-solid fa-play"></i></button>
+                  </div>
+                  <span class="image-count-badge">+${images.length}</span>
+                ` : ''}
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+        
+        <div class="actions-row">
+          <div class="reactions">
+            <button class="reaction-btn ${userReaction === 'like' ? 'active' : ''}" onclick="handleReaction('${post.id}', 'like')">
+              <span class="emoji">👍</span>
+              <span class="count">${reactions.like > 0 ? reactions.like : ''}</span>
+            </button>
+            <button class="reaction-btn ${userReaction === 'dislike' ? 'active' : ''}" onclick="handleReaction('${post.id}', 'dislike')">
+              <span class="emoji">👎</span>
+              <span class="count">${reactions.dislike > 0 ? reactions.dislike : ''}</span>
+            </button>
+            <button class="reaction-btn ${userReaction === 'celebrate' ? 'active' : ''}" onclick="handleReaction('${post.id}', 'celebrate')">
+              <span class="emoji">🎉</span>
+              <span class="count">${reactions.celebrate > 0 ? reactions.celebrate : ''}</span>
+            </button>
+            <button class="reaction-btn ${userReaction === 'angry' ? 'active' : ''}" onclick="handleReaction('${post.id}', 'angry')">
+              <span class="emoji">😡</span>
+              <span class="count">${reactions.angry > 0 ? reactions.angry : ''}</span>
+            </button>
+            <button class="reaction-btn ${userReaction === 'diamond' ? 'active' : ''}" onclick="handleReaction('${post.id}', 'diamond')">
+              <span class="emoji">💎</span>
+              <span class="count">${reactions.diamond > 0 ? reactions.diamond : ''}</span>
+            </button>
+          </div>
+          ${post.author?.wallet ? `
+            <div class="creator-support" onclick="openCreatorSupport('${post.author.wallet}')">
+              <span class="diamond">💎</span>
+              <span class="value">${getSupportAmount()}</span>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    </article>
+  `}).join('');
+}
+
+// ============================================
+// TIME AGO HELPER
+// ============================================
+function timeAgo(timestamp) {
+  if (!timestamp) return 'Just now';
+  const now = Date.now();
+  const diff = now - timestamp;
+  
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  
+  if (seconds < 60) return 'Just now';
+  if (minutes < 60) return `${minutes}m`;
+  if (hours < 24) return `${hours}h`;
+  if (days < 7) return `${days}d`;
+  return new Date(timestamp).toLocaleDateString();
 }
 
 // ============================================
@@ -1236,114 +2040,6 @@ function openCreatorSupport(postCreatorAddress) {
   };
   window.open(links.tonkeeper, '_blank');
   showToast(`💎 Opening wallet for ${amount} TON support...`, 'success');
-}
-
-// ============================================
-// RENDER POSTS
-// ============================================
-const samplePosts = [
-  {
-    id: 'post1',
-    author: {
-      name: 'Yong Social',
-      handle: '@yongsocial',
-      pfp: 'Y',
-      wallet: 'UQDf2YHL2A8EpYO7QO233qUmqOsH7NEj5ZAY7HvwtikQunwB'
-    },
-    time: '2h ago',
-    content: 'Welcome to the Yong Social Community Feed! 🎉\n\nThis is where creators and supporters connect. Tap the 💎 button on any post to support the creator with $1 worth of TON.\n\nBuild the future of social finance together.',
-    verified: true
-  },
-  {
-    id: 'post2',
-    author: {
-      name: 'Crypto Builder',
-      handle: '@cryptobuilder',
-      pfp: 'C',
-      wallet: 'EQD4FPq-PRThBocPiwAcVFN4jXjC5xy5sbXHq5E6gcmW2bnC'
-    },
-    time: '5h ago',
-    content: 'Just deployed my first smart contract on TON! 🚀\n\nThe ecosystem is growing fast and Yong Social is making it easier for creators to get support directly from their community.\n\nWho else is building on TON?',
-    verified: false
-  },
-  {
-    id: 'post3',
-    author: {
-      name: 'TON Community',
-      handle: '@toncommunity',
-      pfp: 'T',
-      wallet: 'EQCxE6mUtQJKFnGfaROHKOa1rT1wFW9ifJNf4hFwJmQYqV5T'
-    },
-    time: '8h ago',
-    content: 'TON adoption is accelerating! 📈\n\nWith over 100M active wallets and growing, the infrastructure for creator economies is stronger than ever.\n\nYong Social is leading the charge in social finance. Join the movement!',
-    verified: true
-  }
-];
-
-// Initialize reactions for sample posts
-samplePosts.forEach(post => {
-  if (!postReactions[post.id]) {
-    postReactions[post.id] = {
-      like: Math.floor(Math.random() * 50) + 10,
-      dislike: Math.floor(Math.random() * 10),
-      celebrate: Math.floor(Math.random() * 20) + 5,
-      angry: Math.floor(Math.random() * 5),
-      diamond: Math.floor(Math.random() * 15) + 3,
-      userReaction: null
-    };
-  }
-});
-
-function renderPosts() {
-  const container = document.getElementById('postsContainer');
-  if (!container) return;
-  
-  container.innerHTML = samplePosts.map(post => {
-    const reactions = postReactions[post.id] || { like: 0, dislike: 0, celebrate: 0, angry: 0, diamond: 0, userReaction: null };
-    
-    return `
-    <article class="tweet" data-post="${post.id}">
-      <div class="pfp">${post.author.pfp}</div>
-      <div class="content">
-        <div class="head">
-          <span class="name">${post.author.name}</span>
-          ${post.verified ? '<i class="fa-solid fa-circle-check verified"></i>' : ''}
-          <span class="handle">${post.author.handle}</span>
-          <span class="time">· ${post.time}</span>
-          <span class="right"><i class="fa-solid fa-ellipsis-vertical"></i></span>
-        </div>
-        <div class="text">${post.content.replace(/\n/g, '<br>')}</div>
-        <div class="actions-row">
-          <div class="reactions">
-            <button class="reaction-btn ${reactions.userReaction === 'like' ? 'active' : ''}" data-reaction="like" onclick="handleReaction('${post.id}', 'like')">
-              <span class="emoji">👍</span>
-              <span class="count">${reactions.like > 0 ? reactions.like : ''}</span>
-            </button>
-            <button class="reaction-btn ${reactions.userReaction === 'dislike' ? 'active' : ''}" data-reaction="dislike" onclick="handleReaction('${post.id}', 'dislike')">
-              <span class="emoji">👎</span>
-              <span class="count">${reactions.dislike > 0 ? reactions.dislike : ''}</span>
-            </button>
-            <button class="reaction-btn ${reactions.userReaction === 'celebrate' ? 'active' : ''}" data-reaction="celebrate" onclick="handleReaction('${post.id}', 'celebrate')">
-              <span class="emoji">🎉</span>
-              <span class="count">${reactions.celebrate > 0 ? reactions.celebrate : ''}</span>
-            </button>
-            <button class="reaction-btn ${reactions.userReaction === 'angry' ? 'active' : ''}" data-reaction="angry" onclick="handleReaction('${post.id}', 'angry')">
-              <span class="emoji">😡</span>
-              <span class="count">${reactions.angry > 0 ? reactions.angry : ''}</span>
-            </button>
-            <button class="reaction-btn ${reactions.userReaction === 'diamond' ? 'active' : ''}" data-reaction="diamond" onclick="handleReaction('${post.id}', 'diamond')">
-              <span class="emoji">💎</span>
-              <span class="count">${reactions.diamond > 0 ? reactions.diamond : ''}</span>
-            </button>
-          </div>
-          <div class="creator-support" onclick="openCreatorSupport('${post.author.wallet}')">
-            <span class="diamond">💎</span>
-            <span class="value">${getSupportAmount()}</span>
-          </div>
-        </div>
-      </div>
-    </article>
-  `}).join('');
 }
 
 // ============================================
@@ -1445,12 +2141,12 @@ auth.onAuthStateChanged(async (user) => {
     try {
       const profileFound = await loadProfileByGoogleUid(user.uid);
       if (profileFound) {
-        renderPosts();
         loadCommunityStats();
         await getTONPrice();
         updateProfileView();
         
         await fetchTickerData();
+        loadPosts();
         
         setInterval(() => {
           const value = getSupportAmount();
