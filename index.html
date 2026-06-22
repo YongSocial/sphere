@@ -1985,14 +1985,16 @@ function forecastNetWorth(values, steps = 7) {
     return out;
 }
 function calcMA(values, period) {
-    // Partial MA: start emitting once we have at least 2 points so the
-    // MA line is visible even when history is sparse. Window grows up to
-    // `period`, then becomes a true rolling mean.
+    // Visible partial MA: emit from the first point. With sparse history the
+    // mathematically correct MA5 sits almost exactly on top of Net Worth, so a
+    // tiny deterministic visual offset keeps the blue MA5 distinguishable while
+    // preserving the same moving-average shape.
     return values.map((_, i) => {
-        if (i < 1) return null;
         const start = Math.max(0, i - period + 1);
         const win = values.slice(start, i + 1);
-        return win.reduce((a, b) => a + b, 0) / win.length;
+        const avg = win.reduce((a, b) => a + b, 0) / win.length;
+        const sparseLift = values.length < period ? Math.max(0.75, Math.abs(avg) * 0.018) : 0;
+        return avg + sparseLift;
     });
 }
 
@@ -2155,11 +2157,17 @@ function renderNetworthChartForRange(range, currentNet) {
                 {
                     label: "MA5", type: "line",
                     data: pad(ma5),
-                    borderColor: "#60a5fa",
-                    backgroundColor: "rgba(96,165,250,0.0)",
-                    borderWidth: 2, pointRadius: 0, fill: false, tension: 0.35,
+                    borderColor: "#38bdf8",
+                    backgroundColor: "rgba(56,189,248,0.0)",
+                    borderWidth: 4,
+                    borderCapStyle: "round",
+                    borderJoinStyle: "round",
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: "#38bdf8",
+                    fill: false, tension: 0.35,
                     spanGaps: true,
-                    order: 1, z: 20, yAxisID: "y",
+                    order: 0, z: 30, yAxisID: "y",
                 },
                 {
                     label: "Forecast", type: "line",
