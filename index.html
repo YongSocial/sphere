@@ -182,8 +182,8 @@ const TON_CONFIG = {
           <a href="#/announcements" class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface2 transition" data-route="/announcements">📢 Announcements</a>
           <a href="#/courses" class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface2 transition" data-route="/courses">📚 Courses</a>
           <a href="#/earn" class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface2 transition" data-route="/earn">✨ Earn Yong Stars</a>
-          <!-- Community link added here -->
-          <a href="#/community" class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface2 transition" data-route="/community">👥 Community</a>
+          <!-- Community link now points directly to feed.html -->
+          <a href="https://yongsocial.github.io/sphere/feed.html" target="_blank" rel="noreferrer" class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface2 transition">👥 Community</a>
         </div>
       </div>
       <a href="#/profile" class="nav-link flex items-center gap-2" data-route="/profile" id="navProfile">
@@ -1542,39 +1542,10 @@ function route() {
     $("#view-courses").classList.toggle("hidden", !isCourses);
     $("#view-earn").classList.toggle("hidden", !isEarn);
     
-    // Community view: scroll to the community bar, or show a message
+    // Community view removed since we now link directly to feed.html
+    // The internal community route now redirects to the external feed
     if (isCommunity) {
-        const bar = document.getElementById("communityBar");
-        if (bar && !bar.classList.contains("hidden")) {
-            bar.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
-            // If bar is hidden (user not verified), show a temporary message
-            const main = document.querySelector('main');
-            const msg = document.createElement('div');
-            msg.className = 'card p-6 text-center my-4';
-            msg.id = 'community-message';
-            msg.innerHTML = `
-                <div class="text-3xl mb-2">👥</div>
-                <div class="font-semibold text-lg">Community Hub</div>
-                <p class="text-sm text-mute mt-1 max-w-md mx-auto">
-                    The community bar is only visible to verified members.
-                    <br><a href="#/profile" class="text-brand hover:underline">Visit your profile</a> to complete verification.
-                </p>
-            `;
-            // Remove any existing message
-            const oldMsg = document.getElementById('community-message');
-            if (oldMsg) oldMsg.remove();
-            main?.prepend(msg);
-            setTimeout(() => { msg.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100);
-        }
-        // Route to dashboard but keep the scroll behavior
-        $("#view-dashboard").classList.remove("hidden");
-        // Show that we are in community view
-        const current = "/community";
-        $$("#nav .nav-link").forEach(a => a.classList.toggle("active", a.dataset.route === current));
-        document.getElementById("moreBtn")?.classList.toggle("active", true);
-        document.getElementById("moreMenu")?.classList.add("hidden");
-        window.scrollTo({ top: 0, behavior: "instant" });
+        window.location.href = 'https://yongsocial.github.io/sphere/feed.html';
         return;
     }
     
