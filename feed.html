@@ -601,6 +601,56 @@
       background: rgba(212, 178, 90, 0.15);
       border-color: rgba(212, 178, 90, 0.5);
     }
+
+    /* Post options menu */
+    .post-menu-wrap {
+      position: relative;
+      display: inline-flex;
+    }
+    .post-menu-btn {
+      background: none;
+      border: none;
+      color: #8a93a8;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 6px;
+      transition: background 0.15s, color 0.15s;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .post-menu-btn:hover { background: rgba(255,255,255,0.06); color: #e7ecf5; }
+    .post-menu-dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 110%;
+      background: #0f1626;
+      border: 1px solid #1f2940;
+      border-radius: 10px;
+      min-width: 130px;
+      z-index: 50;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      overflow: hidden;
+    }
+    .post-menu-dropdown.open { display: block; }
+    .post-menu-dropdown button {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.6rem 1rem;
+      background: none;
+      border: none;
+      color: #ef4444;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .post-menu-dropdown button:hover { background: rgba(239,68,68,0.08); }
+
     /* Link Preview Card */
     .link-preview {
       margin-top: 0.6rem;
@@ -2047,7 +2097,15 @@ function renderPosts() {
           <span class="name">${post.author?.name || 'Unknown'}</span>
           <span class="handle">${post.author?.handle || '@unknown'}</span>
           <span class="time">· ${timeAgo(post.createdAt)}</span>
-          <span class="right"><i class="fa-solid fa-ellipsis-vertical"></i></span>
+          <span class="right">
+            <div class="post-menu-wrap">
+              <button class="post-menu-btn" onclick="togglePostMenu(event,'${post.id}')"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+              ${post.userId === String(PROFILE?.telegramId) ? `
+              <div class="post-menu-dropdown" id="menu-${post.id}">
+                <button onclick="deletePost('${post.id}')"><i class="fa-solid fa-trash"></i> Delete</button>
+              </div>` : ''}
+            </div>
+          </span>
         </div>
         ${post.content ? `<div class="text">${linkifyText(post.content)}</div>` : ''}
         
@@ -2369,6 +2427,36 @@ auth.onAuthStateChanged(async (user) => {
     }, 2000);
   }
 });
+
+// ============================================
+// POST MENU / DELETE
+// ============================================
+function togglePostMenu(e, postId) {
+  e.stopPropagation();
+  const menu = document.getElementById('menu-' + postId);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  // close all open menus
+  document.querySelectorAll('.post-menu-dropdown.open').forEach(m => m.classList.remove('open'));
+  if (!isOpen) menu.classList.add('open');
+}
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.post-menu-dropdown.open').forEach(m => m.classList.remove('open'));
+});
+
+async function deletePost(postId) {
+  if (!confirm('Delete this post?')) return;
+  try {
+    await db.collection('posts').doc(postId).delete();
+    allPosts = allPosts.filter(p => p.id !== postId);
+    postsCache.data = allPosts;
+    renderPosts();
+    showToast('Post deleted.', 'success');
+  } catch(e) {
+    showToast('Delete failed: ' + e.message, 'error');
+  }
+}
 
 // ============================================
 // LINK PREVIEW
