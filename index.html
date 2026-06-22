@@ -2146,9 +2146,11 @@ function renderNetworthChartForRange(range, currentNet) {
                 {
                     label: "MA5", type: "line",
                     data: pad(ma5),
-                    borderColor: "rgba(96,165,250,0.9)",
-                    borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3,
-                    order: 1, yAxisID: "y",
+                    borderColor: "#60a5fa",
+                    backgroundColor: "#60a5fa",
+                    borderWidth: 2.5, pointRadius: 0, fill: false, tension: 0.25,
+                    borderDash: [6, 3], spanGaps: true,
+                    order: 10, z: 10, yAxisID: "y",
                 },
                 {
                     label: "Forecast", type: "line",
