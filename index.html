@@ -13,13 +13,35 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-<!-- Firebase -->
+<!-- Firebase SDK (compat) - loaded once -->
 <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore-compat.js"></script>
 
-<!-- TON Configuration -->
 <script>
+// ============================================
+// FIREBASE INITIALIZATION
+// ============================================
+const firebaseConfig = {
+  apiKey: 'AIzaSyB8ZQSUOcHQ54eRxoC2g2IoLIGIzo6r2ME',
+  authDomain: 'yong-social.firebaseapp.com',
+  projectId: 'yong-social',
+  storageBucket: 'yong-social.firebasestorage.app',
+  messagingSenderId: '178823074404',
+  appId: '1:178823074404:web:d1b4d76ea3a2d7c9170571'
+};
+
+// Initialize Firebase if not already initialized
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// ============================================
+// TON CONFIGURATION
+// ============================================
 const TON_CONFIG = {
     RECEIVER_ADDRESS: 'UQDf2YHL2A8EpYO7QO233qUmqOsH7NEj5ZAY7HvwtikQunwB',
     PAYMENT_AMOUNT_USD: 1.00,
@@ -593,25 +615,7 @@ const TON_CONFIG = {
 <!-- ============================================ -->
 <!-- JAVASCRIPT - COMPLETE APPLICATION -->
 <!-- ============================================ -->
-<script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, onSnapshot, serverTimestamp, collection, getDocs, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js';
-
-// ============================================
-// FIREBASE CONFIG
-// ============================================
-const firebaseConfig = {
-  apiKey: 'AIzaSyB8ZQSUOcHQ54eRxoC2g2IoLIGIzo6r2ME',
-  authDomain: 'yong-social.firebaseapp.com',
-  projectId: 'yong-social',
-  storageBucket: 'yong-social.firebasestorage.app',
-  messagingSenderId: '178823074404',
-  appId: '1:178823074404:web:d1b4d76ea3a2d7c9170571',
-};
-const fbApp = initializeApp(firebaseConfig);
-const db = getFirestore(fbApp);
-const auth = getAuth(fbApp);
-
+<script>
 // ============================================
 // TON PRICE SERVICE
 // ============================================
@@ -713,8 +717,8 @@ class TONPaymentSystem {
         const userId = this.getUserId();
         let profileData = null;
         try {
-            const snap = await getDoc(doc(db, 'profiles', userId));
-            if (snap.exists()) profileData = snap.data();
+            const snap = await db.collection('profiles').doc(userId).get();
+            if (snap.exists) profileData = snap.data();
         } catch (e) { console.warn('Profile fetch failed', e); }
         const fsStatus = profileData?.paymentStatus || 'pending';
         if (fsStatus === 'paid') {
@@ -780,8 +784,8 @@ class TONPaymentSystem {
     async getPaymentDocStatus(paymentDocId) {
         if (!paymentDocId) return 'submitted';
         try {
-            const snap = await getDoc(doc(db, 'payments', paymentDocId));
-            return snap.exists() ? (snap.data().status || 'submitted') : 'submitted';
+            const snap = await db.collection('payments').doc(paymentDocId).get();
+            return snap.exists ? (snap.data().status || 'submitted') : 'submitted';
         } catch { return 'submitted'; }
     }
 
@@ -931,8 +935,8 @@ class TONPaymentSystem {
     async checkPaymentStatus() {
         try {
             const userId = this.getUserId();
-            const snap = await getDoc(doc(db, 'profiles', userId));
-            if (snap.exists()) {
+            const snap = await db.collection('profiles').doc(userId).get();
+            if (snap.exists) {
                 const data = snap.data();
                 if (data.paymentStatus === 'paid' || data.tonPaymentTx) {
                     this.updatePaymentBadge('paid', '✅ Profile Active');
@@ -1054,21 +1058,19 @@ class TONPaymentSystem {
         submitBtn.disabled    = true;
         submitBtn.textContent = 'Submitting…';
         try {
-            const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js');
             const refCode = comment;
             const now     = Date.now();
-            const docRef = await addDoc(collection(db, 'payments'), {
+            const docRef = await db.collection('payments').add({
                 userId:       userId,
                 refCode:      refCode,
                 senderWallet: senderWallet,
                 amount:       this.paymentAmountTON,
                 comment:      refCode,
                 status:       'submitted',
-                createdAt:    serverTimestamp(),
+                createdAt:    firebase.firestore.FieldValue.serverTimestamp(),
             });
             try {
-                const { doc: fsDoc, setDoc: fsSetDoc } = await import('https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js');
-                await fsSetDoc(fsDoc(db, 'profiles', userId), {
+                await db.collection('profiles').doc(userId).set({
                     paymentStatus:   'submitted',
                     bypassCountdown: false,
                     declineReason:   null,
@@ -1157,8 +1159,8 @@ window.handleCommunityAccess = async function() {
     
     try {
         // Check if this Telegram profile already has a googleUid
-        const profileSnap = await getDoc(doc(db, 'profiles', userId));
-        if (profileSnap.exists()) {
+        const profileSnap = await db.collection('profiles').doc(userId).get();
+        if (profileSnap.exists) {
             const profileData = profileSnap.data();
             if (profileData.googleUid) {
                 // Already linked - go directly to feed
@@ -1239,9 +1241,9 @@ function showGoogleLinkingPopup(telegramId) {
         
         try {
             // Check if the Telegram profile exists
-            const profileSnap = await getDoc(doc(db, 'profiles', tgId));
+            const profileSnap = await db.collection('profiles').doc(tgId).get();
             
-            if (!profileSnap.exists()) {
+            if (!profileSnap.exists) {
                 error.textContent = '❌ Telegram ID not found. Copy it from your Yong Social Profile.';
                 error.classList.remove('hidden');
                 status.classList.add('hidden');
@@ -1288,19 +1290,19 @@ function showGoogleLinkingPopup(telegramId) {
             }
             
             // All checks passed — link the accounts
-            await updateDoc(doc(db, 'profiles', tgId), {
+            await db.collection('profiles').doc(tgId).update({
                 googleUid: currentGoogleUser.uid,
                 googleEmail: currentGoogleUser.email,
                 googleName: currentGoogleUser.displayName,
-                linkedAt: serverTimestamp()
+                linkedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             
             // Also store a reverse lookup
-            await setDoc(doc(db, 'userLinks', currentGoogleUser.uid), {
+            await db.collection('userLinks').doc(currentGoogleUser.uid).set({
                 telegramId: tgId,
                 googleUid: currentGoogleUser.uid,
                 googleEmail: currentGoogleUser.email,
-                linkedAt: serverTimestamp()
+                linkedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
             
             status.innerHTML = '<div style="color:#22c984;font-size:1.2rem;">✅ Account linked successfully!</div>';
@@ -1366,8 +1368,8 @@ let tonPayment = null;
 // PROFILE FUNCTIONS
 // ============================================
 async function loadProfile() {
-    const ref = doc(db, 'profiles', String(TG_USER.id));
-    const snap = await getDoc(ref);
+    const ref = db.collection('profiles').doc(String(TG_USER.id));
+    const snap = await ref.get();
     const base = {
         telegramId: TG_USER.id,
         username: TG_USER.username || null,
@@ -1377,21 +1379,21 @@ async function loadProfile() {
         languageCode: TG_USER.language_code || null,
         isPremium: !!TG_USER.is_premium,
     };
-    if (!snap.exists()) {
+    if (!snap.exists) {
         PROFILE = {
             ...base,
             displayName: [TG_USER.first_name, TG_USER.last_name].filter(Boolean).join(' ') || 
                          TG_USER.username || ('tg_' + TG_USER.id),
             bio: '',
             paymentStatus: 'pending',
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            lastSeenAt: serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lastSeenAt: firebase.firestore.FieldValue.serverTimestamp(),
         };
-        await setDoc(ref, PROFILE);
+        await ref.set(PROFILE);
     } else {
         PROFILE = { ...snap.data(), ...base };
-        await updateDoc(ref, { ...base, lastSeenAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        await ref.update({ ...base, lastSeenAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     }
     paintNavAvatar();
     return PROFILE;
@@ -1439,10 +1441,10 @@ function renderProfile() {
         btn.disabled = true;
         btn.textContent = 'Saving…';
         try {
-            await updateDoc(doc(db, 'profiles', String(PROFILE.telegramId)), {
+            await db.collection('profiles').doc(String(PROFILE.telegramId)).update({
                 displayName: dn.value.trim(),
                 bio: bio.value,
-                updatedAt: serverTimestamp()
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             PROFILE.displayName = dn.value.trim();
             PROFILE.bio = bio.value;
@@ -1518,8 +1520,8 @@ async function loadDashboardConfig() {
         return;
     }
     try {
-        const snap = await getDoc(doc(db, "config", "dashboard"));
-        if (snap.exists()) {
+        const snap = await db.collection('config').doc('dashboard').get();
+        if (snap.exists) {
             const d = snap.data();
             cacheToday("ys.dashConfig", d);
             applyDashboardConfig(d);
@@ -1550,8 +1552,8 @@ async function loadCommunityStats() {
     const cached = cachedToday("ys.communityStats");
     if (cached) { _communityStatsData = cached; return; }
     try {
-        const snap = await getDoc(doc(db, "config", "community"));
-        if (snap.exists()) {
+        const snap = await db.collection('config').doc('community').get();
+        if (snap.exists) {
             const d = snap.data();
             cacheToday("ys.communityStats", d);
             _communityStatsData = d;
@@ -1885,20 +1887,20 @@ function getVote(pollId) { const uid = String(TG_USER.id); return POLL_TALLY[pol
 function getDeltas(pollId) { return POLL_TALLY[pollId]?.votes || {}; }
 async function setVote(pollId, optId) {
     const uid = String(TG_USER.id);
-    const ref = doc(db, "polls", pollId);
-    await runTransaction(db, async (tx) => {
-        const snap = await tx.get(ref);
+    const ref = db.collection('polls').doc(pollId);
+    await db.runTransaction(async (transaction) => {
+        const snap = await transaction.get(ref);
         const data = snap.data() || {};
         if (data.voters?.[uid]) return;
         const votes = { ...(data.votes || {}) };
         votes[optId] = (votes[optId] || 0) + 1;
         const voters = { ...(data.voters || {}), [uid]: optId };
-        tx.set(ref, { votes, voters, updatedAt: serverTimestamp() }, { merge: true });
+        transaction.set(ref, { votes, voters, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
     });
 }
 function subscribePolls() {
     POLLS.forEach(p => {
-        onSnapshot(doc(db, "polls", p.id), (snap) => {
+        db.collection('polls').doc(p.id).onSnapshot((snap) => {
             POLL_TALLY[p.id] = snap.data() || {};
             if (!$("#view-pool").classList.contains("hidden")) renderPolls();
         });
@@ -2029,8 +2031,8 @@ async function loadNetworthHistory() {
         try { const arr = JSON.parse(cached); if (Array.isArray(arr)) return arr; } catch {}
     }
     try {
-        const q = query(collection(db, "networth_history"), orderBy("recordedAtMs", "asc"), limit(500));
-        const snap = await getDocs(q);
+        const q = db.collection("networth_history").orderBy("recordedAtMs", "asc").limit(500);
+        const snap = await q.get();
         const pts = snap.docs.map(d => {
             const dd = d.data();
             const ts = dd.recordedAtMs || dd.recordedAt?.toMillis?.() || 0;
@@ -2455,9 +2457,6 @@ async function initApp() {
         document.getElementById('profileLoading')?.classList.add('hidden');
     }
 }
-
-// Ensure getAuth is available
-import { getAuth } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js';
 
 initApp();
 
