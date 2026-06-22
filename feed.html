@@ -601,8 +601,56 @@
       background: rgba(212, 178, 90, 0.15);
       border-color: rgba(212, 178, 90, 0.5);
     }
-    .creator-support .diamond { font-size: 0.9rem; line-height: 1; }
-    .creator-support .value { font-weight: 600; color: #e7ecf5; letter-spacing: 0.01em; }
+    /* Link Preview Card */
+    .link-preview {
+      margin-top: 0.6rem;
+      border: 1px solid #1f2940;
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      text-decoration: none;
+      display: block;
+      background: #0f1626;
+    }
+    .link-preview:hover { border-color: #d4b25a; }
+    .link-preview .lp-img {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      display: block;
+      background: #121a2d;
+    }
+    .link-preview .lp-body {
+      padding: 0.6rem 0.85rem 0.7rem;
+    }
+    .link-preview .lp-site {
+      font-size: 0.7rem;
+      color: #8a93a8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.2rem;
+    }
+    .link-preview .lp-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #e7ecf5;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .link-preview .lp-desc {
+      font-size: 0.78rem;
+      color: #8a93a8;
+      margin-top: 0.2rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .link-preview.no-img .lp-img { display: none; }
 
     /* Post Popup - Professional */
     .post-overlay {
@@ -2101,7 +2149,12 @@ function renderPosts() {
           <span class="time">· ${timeAgo(post.createdAt)}</span>
           <span class="right"><i class="fa-solid fa-ellipsis-vertical"></i></span>
         </div>
-        ${post.content ? `<div class="text">${post.content.replace(/\n/g, '<br>')}</div>` : ''}
+        ${post.content ? `<div class="text">${linkifyText(post.content)}</div>` : ''}
+        
+        ${!thumbnail && post.content ? (() => {
+          const url = extractFirstUrl(post.content);
+          return url ? `<div id="lp-${post.id}" class="link-preview-placeholder"></div>` : '';
+        })() : ''}
         
         ${thumbnail ? (() => {
           const imgs = images;
@@ -2169,6 +2222,14 @@ function renderPosts() {
       </div>
     </article>
   `}).join('');
+
+  // Fetch link previews for posts with URLs but no images
+  allPosts.forEach(post => {
+    if (!post.imageUrls?.length && post.content) {
+      const url = extractFirstUrl(post.content);
+      if (url) fetchLinkPreview(url, post.id);
+    }
+  });
 }
 
 // ============================================
@@ -2409,6 +2470,50 @@ auth.onAuthStateChanged(async (user) => {
     }, 2000);
   }
 });
+
+// ============================================
+// LINK PREVIEW
+// ============================================
+const OG_PROXY = 'https://yongsocial.yongcomics.workers.dev/';
+const _ogCache = {};
+
+function extractFirstUrl(text) {
+  const m = text.match(/https?:\/\/[^\s]+/);
+  return m ? m[0] : null;
+}
+
+function linkifyText(text) {
+  return text
+    .replace(/\n/g, '<br>')
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#d4b25a;text-decoration:underline;word-break:break-all;">$1</a>');
+}
+
+async function fetchLinkPreview(url, postId) {
+  const el = document.getElementById('lp-' + postId);
+  if (!el) return;
+
+  if (_ogCache[url]) { renderLinkPreview(el, _ogCache[url], url); return; }
+
+  try {
+    const res = await fetch(OG_PROXY + '?url=' + encodeURIComponent(url));
+    const data = await res.json();
+    if (data.error) return;
+    _ogCache[url] = data;
+    renderLinkPreview(el, data, url);
+  } catch(e) { /* silently fail */ }
+}
+
+function renderLinkPreview(el, data, url) {
+  el.outerHTML = `
+    <a class="link-preview${data.image ? '' : ' no-img'}" href="${url}" target="_blank" rel="noopener">
+      ${data.image ? `<img class="lp-img" src="${data.image}" alt="" loading="lazy" onerror="this.parentElement.classList.add('no-img');this.remove();" />` : ''}
+      <div class="lp-body">
+        <div class="lp-site">${data.siteName || new URL(url).hostname}</div>
+        ${data.title ? `<div class="lp-title">${data.title}</div>` : ''}
+        ${data.description ? `<div class="lp-desc">${data.description}</div>` : ''}
+      </div>
+    </a>`;
+}
 
 // ============================================
 // INIT
