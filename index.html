@@ -306,7 +306,7 @@ const TON_CONFIG = {
       <div id="netWorthDelta" class="text-xs mt-1 text-mute">base + crypto · updates daily at midnight UTC</div>
     </div>
     <div class="card p-5">
-      <div class="text-xs uppercase tracking-wider text-mute">Website Views · 24h</div>
+      <div class="text-xs uppercase tracking-wider text-mute">Website Views · This Month</div>
       <div id="viewsTotal" class="text-3xl font-extrabold mt-1">—</div>
       <div id="viewsDelta" class="text-xs mt-1 text-mute">vs previous day</div>
       <a href="https://www.yongsocial.com/" target="_blank" rel="noreferrer" class="btn-brand mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm">
@@ -1911,27 +1911,51 @@ window.addEventListener("hashchange", route);
 // CHART
 // ============================================
 function seededRand(seed) { let s = seed; return () => (s = (s * 9301 + 49297) % 233280) / 233280; }
-function getViewsData() {
-    const today = new Date().toISOString().slice(0, 10);
-    let cached = store.get("ys.views");
-    if (cached?.day === today) return cached;
-    const rng = seededRand([...today].reduce((a, c) => a + c.charCodeAt(0), 0));
-    const hours = Array.from({ length: 24 }, (_, i) => {
-        const base = 200 + 350 * Math.sin((i - 4) / 24 * Math.PI);
-        return Math.max(40, Math.round(base + rng() * 180 - 60));
-    });
-    const prev = Math.round(hours.reduce((a, b) => a + b, 0) * (0.85 + rng() * 0.3));
-    const out = { day: today, hours, prev };
-    store.set("ys.views", out);
-    return out;
+async function loadViewsCard() {
+    const now       = new Date();
+    const year      = now.getUTCFullYear();
+    const month     = now.getUTCMonth();   // 0-based
+    const cacheKey  = "ys.websiteViews." + year;
+    const label     = now.toLocaleString("default", { month: "long" });
+    const prevLabel = new Date(year, month - 1, 1).toLocaleString("default", { month: "long" });
+
+    let yearData = null;
+    const cached = store.get(cacheKey);
+    if (cached) {
+        yearData = cached;
+    } else {
+        try {
+            const snap = await db.collection("config").doc("websiteViews").get();
+            if (snap.exists) {
+                yearData = snap.data()[year] || null;
+                if (yearData) store.set(cacheKey, yearData);
+            }
+        } catch(e) { console.warn("websiteViews fetch failed", e); }
+    }
+
+    const total = yearData ? (parseInt(yearData[month]) || 0) : null;
+    const prev  = yearData ? (parseInt(yearData[month - 1]) || 0) : null;
+
+    if (total === null) {
+        $("#viewsTotal").textContent = "—";
+        $("#viewsDelta").textContent = "not yet recorded";
+        return;
+    }
+
+    $("#viewsTotal").textContent = fmt.abbrev(total);
+
+    if (prev && prev > 0) {
+        const delta = ((total - prev) / prev) * 100;
+        const sign  = delta >= 0 ? "+" : "";
+        $("#viewsDelta").innerHTML =
+            `<span class="${delta >= 0 ? 'text-brand2' : 'text-danger'}">${sign}${delta.toFixed(1)}%</span>`
+            + ` vs ${prevLabel}`;
+    } else {
+        $("#viewsDelta").textContent = label + " total";
+    }
 }
-function renderChart() {
-    const v = getViewsData();
-    const total = v.hours.reduce((a, b) => a + b, 0);
-    const delta = ((total - v.prev) / v.prev) * 100;
-    $("#viewsTotal").textContent = fmt.num(total);
-    $("#viewsDelta").innerHTML = `<span class="${delta >= 0 ? 'text-brand2' : 'text-danger'}">${fmt.pct(delta)}</span> vs previous day`;
-}
+// keep renderChart as a no-op so nothing else breaks
+function renderChart() {}
 
 // ============================================
 // SOCIALS
@@ -2632,7 +2656,7 @@ document.addEventListener("click", (e) => {
 $("#yr").textContent = new Date().getFullYear();
 (async () => {
     await loadDashboardConfig();
-    renderChart();
+    loadViewsCard();
     loadSocials();
     loadCrypto();
     loadRecent();
