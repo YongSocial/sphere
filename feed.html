@@ -18,14 +18,1266 @@
   <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore-compat.js"></script>
 
   <style>
-    /* ... same styles as before ... */
-    /* (styles truncated for brevity - same as previous version) */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #070b14;
+      color: #e7ecf5;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    .card {
+      background: linear-gradient(180deg, #0f1626, #0b1120);
+      border: 1px solid #1f2940;
+      border-radius: 18px;
+    }
+    .chip {
+      background: #121a2d;
+      border: 1px solid #1f2940;
+      border-radius: 9999px;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.75rem;
+      color: #8a93a8;
+    }
+    .btn-brand {
+      background: #d4b25a;
+      color: #0b1120;
+      font-weight: 600;
+      border: none;
+      border-radius: 9999px;
+      padding: 0.5rem 1.25rem;
+      cursor: pointer;
+      transition: filter 0.15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .btn-brand:hover { filter: brightness(1.05); }
+    .btn-brand:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      backdrop-filter: blur(8px);
+      background: rgba(7, 11, 20, 0.8);
+      border-bottom: 1px solid #1f2940;
+    }
+    .header-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 1.25rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      cursor: pointer;
+    }
+    .header-brand img {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      object-fit: cover;
+    }
+    .header-brand .title {
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+    .header-brand .subtitle {
+      font-size: 0.6875rem;
+      color: #8a93a8;
+      margin-top: -0.125rem;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    .nav-link {
+      padding: 0.5rem 0.9rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #8a93a8;
+      cursor: pointer;
+      transition: 0.15s;
+      background: transparent;
+      border: none;
+    }
+    .nav-link:hover { color: #e7ecf5; }
+    .nav-link.active {
+      background: #121a2d;
+      border: 1px solid #1f2940;
+      color: #d4b25a;
+    }
+
+    .app-shell {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 0;
+      min-height: calc(100vh - 64px);
+    }
+
+    .sidebar {
+      padding: 1.5rem 1rem;
+      border-right: 1px solid #1f2940;
+      position: sticky;
+      top: 64px;
+      height: calc(100vh - 64px);
+      display: flex;
+      flex-direction: column;
+      background: #070b14;
+    }
+    .sidebar .brand {
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .sidebar .brand span { color: #d4b25a; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: 9999px;
+      color: #8a93a8;
+      font-weight: 500;
+      font-size: 0.95rem;
+      transition: 0.1s;
+      cursor: pointer;
+      margin-bottom: 0.25rem;
+      background: transparent;
+      border: none;
+      width: 100%;
+      text-align: left;
+    }
+    .nav-item i { width: 1.4rem; font-size: 1.2rem; text-align: center; }
+    .nav-item.active { background: #121a2d; border: 1px solid #1f2940; color: #d4b25a; }
+    .nav-item:hover { background: rgba(255,255,255,0.04); }
+    .nav-item .badge {
+      margin-left: auto;
+      background: #d4b25a;
+      color: #0b1120;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.1rem 0.45rem;
+      border-radius: 9999px;
+    }
+
+    .sidebar-profile {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem;
+      border-radius: 9999px;
+      border: 1px solid #1f2940;
+      background: #0f1626;
+    }
+    .sidebar-profile .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #d4b25a, #22c984);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #0b1120;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .sidebar-profile .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .sidebar-profile .info { flex: 1; min-width: 0; }
+    .sidebar-profile .name { font-weight: 600; font-size: 0.9rem; }
+    .sidebar-profile .handle { color: #8a93a8; font-size: 0.75rem; }
+
+    .feed-col { 
+      border-right: 1px solid #1f2940; 
+      min-width: 0;
+      width: 100%;
+    }
+    
+    .ticker-wrapper {
+      overflow: hidden;
+      background: #0f1626;
+      border-bottom: 1px solid #1f2940;
+      padding: 0.4rem 0;
+      position: relative;
+      z-index: 5;
+    }
+    .ticker-track {
+      display: flex;
+      animation: ticker-scroll 45s linear infinite;
+      width: max-content;
+    }
+    .ticker-track:hover {
+      animation-play-state: paused;
+    }
+    .ticker-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.2rem 1.2rem;
+      white-space: nowrap;
+      border-right: 1px solid #1f2940;
+      flex-shrink: 0;
+      font-size: 0.8rem;
+    }
+    .ticker-item .symbol {
+      font-weight: 700;
+      color: #e7ecf5;
+      text-transform: uppercase;
+    }
+    .ticker-item .price {
+      font-weight: 600;
+      color: #8a93a8;
+    }
+    .ticker-item .change {
+      font-weight: 600;
+      font-size: 0.75rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+    }
+    .ticker-item .change.positive {
+      color: #22c984;
+      background: rgba(34, 201, 132, 0.1);
+    }
+    .ticker-item .change.negative {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+    }
+    .ticker-item .divider {
+      color: #1f2940;
+      margin: 0 0.2rem;
+    }
+    .ticker-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0;
+      color: #5a6378;
+      font-size: 0.8rem;
+      width: 100%;
+    }
+    .ticker-loading .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #1f2940;
+      border-top-color: #d4b25a;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes ticker-scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .new-posts-banner {
+      display: none;
+      background: #d4b25a;
+      color: #0b1120;
+      padding: 0.6rem 1.5rem;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      border-bottom: 1px solid #1f2940;
+      position: sticky;
+      top: 0;
+      z-index: 8;
+    }
+    .new-posts-banner:hover {
+      background: #c9a54a;
+    }
+    .new-posts-banner.show { display: block; }
+
+    .tweet {
+      display: flex;
+      gap: 0.75rem;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #1f2940;
+    }
+    .tweet .pfp {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      background: #121a2d;
+      border: 1px solid #1f2940;
+      font-size: 0.9rem;
+      overflow: hidden;
+    }
+    .tweet .pfp img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .tweet .content { flex: 1; min-width: 0; }
+    .tweet .head {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      font-size: 0.9rem;
+    }
+    .tweet .head .name { font-weight: 700; color: #e7ecf5; }
+    .tweet .head .verified { color: #d4b25a; }
+    .tweet .head .handle,
+    .tweet .head .time { color: #8a93a8; }
+    .tweet .head .right {
+      margin-left: auto;
+      color: #8a93a8;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .tweet .text {
+      margin-top: 0.3rem;
+      line-height: 1.4;
+      font-size: 0.95rem;
+      word-wrap: break-word;
+    }
+    .tweet .read-more {
+      color: #d4b25a;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-block;
+      margin-top: 0.3rem;
+      font-size: 0.85rem;
+    }
+    .tweet .read-more:hover { text-decoration: underline; }
+
+    .youtube-embed {
+      margin-top: 0.6rem;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      aspect-ratio: 16 / 9;
+      width: 100%;
+      background: #000;
+    }
+    .youtube-embed iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .post-images {
+      margin-top: 0.6rem;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      background: #000;
+      aspect-ratio: 16 / 9;
+      width: 100%;
+      cursor: pointer;
+      user-select: none;
+    }
+    .post-images .slide {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+    }
+    .post-images .slide.active { opacity: 1; }
+    .post-images .slide img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .post-images.single-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .post-images .watermark {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      color: rgba(255,255,255,0.75);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      pointer-events: none;
+      z-index: 10;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+    }
+    .post-images .center-play {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 15;
+      background: rgba(0,0,0,0.28);
+      transition: opacity 0.2s;
+    }
+    .post-images .center-play.hidden { display: none; }
+    .post-images .center-play .play-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: rgba(212, 178, 90, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      color: #0b1120;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.15s;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .post-images .center-play .play-btn:hover { transform: scale(1.08); }
+    .post-images .video-controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      padding: 0 10px 8px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.72));
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .post-images.playing .video-controls { display: flex; }
+    .post-images .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 2px;
+      cursor: pointer;
+      position: relative;
+    }
+    .post-images .progress-fill {
+      height: 100%;
+      background: #d4b25a;
+      border-radius: 2px;
+      transition: width 0.2s linear;
+      width: 0%;
+    }
+    .post-images .ctrl-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .post-images .ctrl-btn {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 2px 4px;
+      line-height: 1;
+      opacity: 0.9;
+      transition: opacity 0.15s;
+    }
+    .post-images .ctrl-btn:hover { opacity: 1; }
+    .post-images .time-display {
+      color: rgba(255,255,255,0.85);
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      flex: 1;
+    }
+    .post-images .slide-dots {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      margin-right: 4px;
+    }
+    .post-images .slide-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.4);
+      transition: background 0.2s, transform 0.2s;
+    }
+    .post-images .slide-dot.active {
+      background: #d4b25a;
+      transform: scale(1.4);
+    }
+
+    .actions-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .reactions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .reaction-btn {
+      background: transparent;
+      border: 1px solid #1f2940;
+      border-radius: 9999px;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+      color: #8a93a8;
+      font-family: 'Inter', sans-serif;
+    }
+    .reaction-btn:hover {
+      border-color: #d4b25a;
+      background: rgba(212, 178, 90, 0.05);
+    }
+    .reaction-btn.active {
+      border-color: #d4b25a;
+      background: rgba(212, 178, 90, 0.1);
+      color: #d4b25a;
+    }
+    .reaction-btn .emoji {
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .reaction-btn .count {
+      font-size: 0.7rem;
+      font-weight: 600;
+      min-width: 12px;
+    }
+
+    .creator-support {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      color: #d4b25a;
+      font-size: 0.8rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      border: 1px solid rgba(212, 178, 90, 0.25);
+      background: rgba(212, 178, 90, 0.06);
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s;
+    }
+    .creator-support:hover {
+      background: rgba(212, 178, 90, 0.15);
+      border-color: rgba(212, 178, 90, 0.5);
+    }
+
+    .post-menu-wrap {
+      position: relative;
+      display: inline-flex;
+    }
+    .post-menu-btn {
+      background: none;
+      border: none;
+      color: #8a93a8;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 6px;
+      transition: background 0.15s, color 0.15s;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .post-menu-btn:hover { background: rgba(255,255,255,0.06); color: #e7ecf5; }
+    .post-menu-dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 110%;
+      background: #0f1626;
+      border: 1px solid #1f2940;
+      border-radius: 10px;
+      min-width: 130px;
+      z-index: 50;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      overflow: hidden;
+    }
+    .post-menu-dropdown.open { display: block; }
+    .post-menu-dropdown button {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.6rem 1rem;
+      background: none;
+      border: none;
+      color: #ef4444;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .post-menu-dropdown button:hover { background: rgba(239,68,68,0.08); }
+
+    .link-preview {
+      margin-top: 0.6rem;
+      border: 1px solid #1f2940;
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      text-decoration: none;
+      display: block;
+      background: #0f1626;
+    }
+    .link-preview:hover { border-color: #d4b25a; }
+    .link-preview .lp-img {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      display: block;
+      background: #121a2d;
+    }
+    .link-preview .lp-body {
+      padding: 0.6rem 0.85rem 0.7rem;
+    }
+    .link-preview .lp-site {
+      font-size: 0.7rem;
+      color: #8a93a8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.2rem;
+    }
+    .link-preview .lp-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #e7ecf5;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .link-preview .lp-desc {
+      font-size: 0.78rem;
+      color: #8a93a8;
+      margin-top: 0.2rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .link-preview.no-img .lp-img { display: none; }
+
+    .post-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(7, 11, 20, 0.92);
+      backdrop-filter: blur(16px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .post-overlay.active { display: flex; }
+    .post-modal {
+      max-width: 540px;
+      width: 100%;
+      max-height: 92vh;
+      overflow-y: auto;
+      background: linear-gradient(180deg, #0f1626, #0b1120);
+      border: 1px solid #1f2940;
+      border-radius: 20px;
+      padding: 1.5rem;
+    }
+    .post-modal::-webkit-scrollbar { width: 4px; }
+    .post-modal::-webkit-scrollbar-track { background: #0b1120; }
+    .post-modal::-webkit-scrollbar-thumb { background: #1f2940; border-radius: 9999px; }
+    
+    .post-modal .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #1f2940;
+    }
+    .post-modal .modal-header .header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .post-modal .modal-header .avatar-sm {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #d4b25a, #22c984);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #0b1120;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .post-modal .modal-header .avatar-sm img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .post-modal .modal-header h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #e7ecf5;
+    }
+    .post-modal .modal-header .close-btn {
+      background: none;
+      border: none;
+      color: #8a93a8;
+      font-size: 1.4rem;
+      cursor: pointer;
+      transition: color 0.2s;
+      padding: 0.2rem;
+      line-height: 1;
+    }
+    .post-modal .modal-header .close-btn:hover { color: #e7ecf5; }
+    
+    .post-modal textarea {
+      width: 100%;
+      min-height: 100px;
+      background: transparent;
+      border: none;
+      padding: 0.25rem 0;
+      font-size: 1rem;
+      font-family: 'Inter', sans-serif;
+      color: #e7ecf5;
+      outline: none;
+      resize: vertical;
+      line-height: 1.6;
+    }
+    .post-modal textarea::placeholder { color: #5a6378; }
+    .post-modal .char-count {
+      font-size: 0.7rem;
+      color: #5a6378;
+      text-align: right;
+      margin-top: 0.25rem;
+    }
+    .post-modal .char-count.over { color: #ef4444; }
+
+    .post-modal .image-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .post-modal .image-preview-item {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #121a2d;
+      border: 1px solid #1f2940;
+    }
+    .post-modal .image-preview-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .post-modal .image-preview-item .remove-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.92);
+      border: none;
+      color: #fff;
+      font-size: 0.65rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .post-modal .image-preview-item .remove-btn:hover { background: #ef4444; }
+
+    .post-modal .upload-progress {
+      margin-top: 0.75rem;
+      display: none;
+    }
+    .post-modal .upload-progress.show { display: block; }
+    .post-modal .upload-progress .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #1f2940;
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+    .post-modal .upload-progress .progress-bar .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #d4b25a, #22c984);
+      border-radius: 9999px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+    .post-modal .upload-progress .progress-text {
+      font-size: 0.75rem;
+      color: #8a93a8;
+      margin-top: 0.4rem;
+      text-align: center;
+    }
+
+    .post-modal .post-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #1f2940;
+      flex-wrap: wrap;
+    }
+    .post-modal .post-actions .btn-secondary {
+      background: #121a2d;
+      border: 1px solid #1f2940;
+      color: #e7ecf5;
+      border-radius: 9999px;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: 'Inter', sans-serif;
+    }
+    .post-modal .post-actions .btn-secondary:hover {
+      border-color: #d4b25a;
+    }
+    .post-modal .post-actions .btn-secondary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .post-modal .post-actions .btn-brand {
+      padding: 0.5rem 1.25rem;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-left: auto;
+    }
+
+    #profileView {
+      display: none;
+      padding: 2rem 1.5rem;
+    }
+    #profileView.active { display: block; }
+    .profile-header {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .profile-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #d4b25a, #22c984);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #0b1120;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .profile-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .profile-info h2 { font-size: 1.5rem; font-weight: 700; }
+    .profile-info .handle { color: #8a93a8; font-size: 0.95rem; margin-top: 0.25rem; }
+    .profile-info .bio { color: #8a93a8; font-size: 0.9rem; margin-top: 0.5rem; max-width: 400px; }
+    .profile-details {
+      background: #0f1626;
+      border: 1px solid #1f2940;
+      border-radius: 18px;
+      padding: 1.5rem;
+      max-width: 500px;
+    }
+    .profile-details .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #1f2940;
+    }
+    .profile-details .row:last-child { border-bottom: none; }
+    .profile-details .label { color: #8a93a8; font-size: 0.85rem; }
+    .profile-details .value { font-weight: 500; font-size: 0.9rem; word-break: break-all; }
+    .profile-details .value .wallet-address {
+      font-family: monospace;
+      font-size: 0.8rem;
+      background: #121a2d;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      border: 1px solid #1f2940;
+    }
+
+    .bottomnav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #070b14;
+      border-top: 1px solid #1f2940;
+      padding: 0.5rem 0;
+      justify-content: space-around;
+      z-index: 20;
+    }
+    .bottomnav .nav-item { font-size: 1.2rem; color: #8a93a8; cursor: pointer; }
+    .bottomnav .nav-item.active { color: #d4b25a; }
+
+    .fab {
+      display: none;
+      position: fixed;
+      bottom: 5rem;
+      right: 1.5rem;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #d4b25a;
+      color: #0b1120;
+      border: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      cursor: pointer;
+      z-index: 20;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      padding: 0;
+      line-height: 1;
+    }
+    .fab i { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 300;
+      background: #0f1626;
+      border: 1px solid #1f2940;
+      border-radius: 16px;
+      padding: 1rem 1.5rem;
+      max-width: 90%;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      display: none;
+      animation: slideUp 0.3s ease;
+    }
+    .toast.show { display: block; }
+    .toast.success { border-color: #22c984; }
+    .toast.error { border-color: #ef4444; }
+    .toast .icon { font-size: 1.5rem; margin-right: 0.5rem; }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    .wallet-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(7, 11, 20, 0.95);
+      backdrop-filter: blur(12px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .wallet-overlay.active { display: flex; }
+    .wallet-modal {
+      max-width: 440px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .wallet-status {
+      transition: all 0.3s ease;
+      border: 2px solid #1f2940;
+      border-radius: 18px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .wallet-status .icon { font-size: 3.5rem; margin-bottom: 0.75rem; }
+    .wallet-status h2 { font-size: 1.25rem; font-weight: 700; color: #e7ecf5; }
+    .wallet-status p { font-size: 0.9rem; color: #8a93a8; margin-top: 0.5rem; line-height: 1.5; }
+    .wallet-input-group { margin-top: 1.25rem; text-align: left; }
+    .wallet-input-group label { display: block; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #8a93a8; margin-bottom: 0.4rem; }
+    .wallet-input-group input {
+      width: 100%;
+      background: #121a2d;
+      border: 1px solid #1f2940;
+      border-radius: 14px;
+      padding: 0.85rem 1rem;
+      font-size: 0.95rem;
+      font-family: 'Inter', monospace;
+      color: #e7ecf5;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .wallet-input-group input:focus { border-color: #d4b25a; }
+    .wallet-input-group input::placeholder { color: #5a6378; }
+    .wallet-error { font-size: 0.8rem; color: #ef4444; margin-top: 0.5rem; display: none; }
+    .wallet-error.visible { display: block; }
+    .wallet-actions { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.25rem; }
+    .wallet-actions .btn-primary {
+      background: #d4b25a;
+      color: #0b1120;
+      font-weight: 700;
+      font-size: 1rem;
+      border: none;
+      border-radius: 9999px;
+      padding: 0.85rem;
+      cursor: pointer;
+      transition: filter 0.15s;
+      width: 100%;
+      font-family: 'Inter', sans-serif;
+    }
+    .wallet-actions .btn-primary:hover { filter: brightness(1.05); }
+    .wallet-actions .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .wallet-actions .btn-skip {
+      background: transparent;
+      color: #8a93a8;
+      font-size: 0.85rem;
+      border: none;
+      padding: 0.5rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .wallet-actions .btn-skip:hover { color: #e7ecf5; }
+    .wallet-footer { font-size: 0.7rem; color: #5a6378; text-align: center; margin-top: 0.75rem; }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #8a93a8;
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+    .empty-state h3 { font-size: 1.2rem; font-weight: 700; color: #e7ecf5; margin-bottom: 0.5rem; }
+    .empty-state p { font-size: 0.9rem; max-width: 400px; margin: 0 auto; }
+
+    @media (max-width: 1024px) {
+      .app-shell { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .feed-col { border-right: none; }
+      .bottomnav { display: flex; }
+      .fab { display: flex; }
+      main { padding-bottom: 5rem; }
+      .tweet { padding: 0.75rem 1rem; }
+      .profile-header { flex-direction: column; text-align: center; }
+      .profile-info .bio { margin-left: auto; margin-right: auto; }
+      .ticker-item { font-size: 0.7rem; padding: 0.15rem 0.8rem; }
+      .reactions { gap: 0.3rem; }
+      .reaction-btn { font-size: 0.7rem; padding: 0.15rem 0.4rem; }
+      .reaction-btn .emoji { font-size: 0.85rem; }
+      .post-modal { padding: 1.25rem; }
+      .post-images { aspect-ratio: 4 / 5; }
+    }
+    @media (min-width: 1024px) {
+      .bottomnav, .fab { display: none !important; }
+    }
   </style>
 </head>
 <body>
 
-<!-- HEADER, TOAST, BANNER, POST POPUP, WALLET POPUP, MAIN APP -->
-<!-- (same HTML structure as before - truncated for brevity) -->
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <a href="https://www.yongsocial.com/" target="_blank" rel="noreferrer" class="header-brand">
+      <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhu_7mdnTHeYcrLaxRY0veIDVO6Pb0Pk4ngLKZupHTxufcBF3hwrlsgIxyXHfiDu_NywzKTnvLoGuh37Lv6k1Qkl0Q5HlHFn_sOa6ow8cL2TGXee1kSl6Uohtv_SggJ1UBhfNpUG4ClC1kPMkpC7Am3wX3cmDve4a95uvhmjNfF97aP2-hUVpX_Wk2dh56a/s1200/file_00000000814c720aa68fca8155db1cab_copy_1200x630.png" alt="Yong Social" />
+      <div>
+        <div class="title">Yong Social</div>
+        <div class="subtitle">Finance · Crypto · Wealth Building</div>
+      </div>
+    </a>
+    <nav class="nav-links">
+      <button class="nav-link active" data-view="feed" onclick="switchView('feed')">Dashboard</button>
+      <button class="nav-link" data-view="profile" onclick="switchView('profile')">Profile</button>
+      <button class="nav-link" onclick="window.location.href='https://yongsocial.github.io/sphere/'">← Back</button>
+    </nav>
+  </div>
+</header>
+
+<!-- TOAST -->
+<div id="toast" class="toast">
+  <span id="toastIcon" class="icon">✅</span>
+  <span id="toastMessage">Success!</span>
+</div>
+
+<!-- NEW POSTS BANNER -->
+<div id="newPostsBanner" class="new-posts-banner" onclick="loadNewPosts()">
+  🔄 <span id="newPostsCount">0</span> new posts - Tap to load
+</div>
+
+<!-- POST POPUP -->
+<div id="postOverlay" class="post-overlay">
+  <div class="post-modal">
+    <div class="modal-header">
+      <div class="header-left">
+        <div class="avatar-sm" id="postPopupAvatar">Y</div>
+        <h2 id="postPopupName">Create Post</h2>
+      </div>
+      <button class="close-btn" onclick="closePostPopup()">✕</button>
+    </div>
+    
+    <textarea id="postContent" placeholder="What's on your mind? (max 500 characters)" maxlength="500"></textarea>
+    <div class="char-count"><span id="charCount">0</span>/500</div>
+    
+    <div id="imagePreviewGrid" class="image-preview-grid"></div>
+    
+    <div id="uploadProgress" class="upload-progress">
+      <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+      <div id="progressText" class="progress-text">Uploading 0/0</div>
+    </div>
+    
+    <div class="post-actions">
+      <button class="btn-secondary" onclick="selectImages()">
+        <i class="fa-solid fa-image"></i> Add Images (max 5)
+      </button>
+      <button id="postSubmitBtn" class="btn-brand" onclick="submitPost()">
+        <i class="fa-solid fa-paper-plane"></i> Post
+      </button>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFileSelect(event)" />
+  </div>
+</div>
+
+<!-- WALLET ADDRESS POPUP -->
+<div id="walletOverlay" class="wallet-overlay">
+  <div class="wallet-modal card">
+    <div class="wallet-status">
+      <div class="icon">💎</div>
+      <h2>Enter Your TON Wallet Address</h2>
+      <p>To receive creator support, please enter your TON wallet address. This will be saved to your profile.</p>
+      <div class="wallet-input-group">
+        <label for="walletInput">Wallet Address</label>
+        <input id="walletInput" type="text" placeholder="UQ… or EQ…" />
+        <div id="walletError" class="wallet-error">Please enter a valid TON wallet address.</div>
+      </div>
+      <div class="wallet-actions">
+        <button id="saveWalletBtn" class="btn-primary">💎 Save Wallet Address</button>
+        <button id="skipWalletBtn" class="btn-skip">Skip for now</button>
+      </div>
+      <div class="wallet-footer">Your wallet address is stored securely in your profile.</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app-shell">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">Yong <span>Social</span></div>
+    <button class="nav-item active" onclick="switchView('feed')"><i class="fa-solid fa-house"></i> Home</button>
+    <button class="nav-item" onclick="switchView('profile')"><i class="fa-regular fa-user"></i> Profile</button>
+    <button class="nav-item" onclick="window.location.href='https://yongsocial.github.io/sphere/'"><i class="fa-solid fa-arrow-left"></i> Back to App</button>
+    <button class="nav-item" onclick="openPostPopup()" style="color:#d4b25a;border:1px solid #d4b25a;margin-top:0.5rem;">
+      <i class="fa-solid fa-pen"></i> Post
+    </button>
+
+    <div class="sidebar-profile" id="sidebarProfile">
+      <div id="sidebarAvatar" class="avatar">Y</div>
+      <div class="info">
+        <div id="sidebarName" class="name">Loading...</div>
+        <div id="sidebarHandle" class="handle">@user</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CENTER FEED -->
+  <section class="feed-col">
+    <div id="feedView">
+      <!-- Rotating Ticker -->
+      <div class="ticker-wrapper">
+        <div id="tickerTrack" class="ticker-track">
+          <div class="ticker-loading">
+            <div class="spinner"></div>
+            Loading crypto prices...
+          </div>
+        </div>
+      </div>
+      
+      <main id="feed">
+        <div id="postsContainer"></div>
+      </main>
+    </div>
+
+    <!-- Profile View -->
+    <div id="profileView">
+      <div class="profile-header">
+        <div id="profileAvatar" class="profile-avatar">Y</div>
+        <div class="profile-info">
+          <h2 id="profileName">Loading...</h2>
+          <div class="handle" id="profileHandle">@user</div>
+          <div class="bio" id="profileBio">No bio yet.</div>
+        </div>
+      </div>
+      <div class="profile-details">
+        <div class="row">
+          <span class="label">Telegram ID</span>
+          <span class="value" id="profileTgId">—</span>
+        </div>
+        <div class="row">
+          <span class="label">Wallet Address</span>
+          <span class="value" id="profileWallet">Not set</span>
+        </div>
+        <div class="row">
+          <span class="label">Account Status</span>
+          <span class="value" id="profileStatus">—</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- MOBILE FAB -->
+<button class="fab" onclick="openPostPopup()"><i class="fa-solid fa-feather"></i></button>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="bottomnav">
+  <div class="nav-item active" onclick="switchView('feed')"><i class="fa-solid fa-house"></i></div>
+  <div class="nav-item" onclick="switchView('profile')"><i class="fa-regular fa-user"></i></div>
+  <div class="nav-item" onclick="window.location.href='https://yongsocial.github.io/sphere/'"><i class="fa-solid fa-arrow-left"></i></div>
+</nav>
 
 <!-- ============================================ -->
 <!-- JAVASCRIPT -->
@@ -60,10 +1312,10 @@ var RSS_FEED_URL = 'https://www.yongsocial.com/feeds/posts/default?alt=rss';
 var RSS_PROXY = 'https://api.rss2json.com/v1/api.json?rss_url=';
 var OG_PROXY = 'https://yongsocial.yongcomics.workers.dev/';
 var YONG_TREASURY = 'UQDf2YHL2A8EpYO7QO233qUmqOsH7NEj5ZAY7HvwtikQunwB';
-var POSTS_CACHE_TTL = 10 * 60 * 1000;      // 10 minutes
-var RSS_CACHE_TTL = 15 * 60 * 1000;         // 15 minutes
-var CRYPTO_CACHE_TTL = 60 * 60 * 1000;      // 1 hour
-var PROFILE_CACHE_TTL = 5 * 60 * 1000;      // 5 minutes
+var POSTS_CACHE_TTL = 10 * 60 * 1000;
+var RSS_CACHE_TTL = 15 * 60 * 1000;
+var CRYPTO_CACHE_TTL = 60 * 60 * 1000;
+var PROFILE_CACHE_TTL = 5 * 60 * 1000;
 
 // ============================================
 // CACHE HELPERS
@@ -380,12 +1632,10 @@ function getSupportAmount() {
 async function fetchTickerData() {
   var track = document.getElementById('tickerTrack');
   
-  // Check localStorage cache first
   var cached = CACHE.crypto.get();
   if (cached && cached.length > 0) {
     cryptoData = cached;
     renderTicker();
-    // Continue to fetch fresh data in background
   }
   
   try {
@@ -405,7 +1655,6 @@ async function fetchTickerData() {
       }
     }
     
-    // Only show loading if no cached data exists
     if (!cached || cached.length === 0) {
       track.innerHTML = '<div class="ticker-loading"><div class="spinner"></div> Loading crypto prices...</div>';
     }
@@ -429,7 +1678,6 @@ async function fetchTickerData() {
       };
     });
     
-    // Cache to localStorage and Firestore
     CACHE.crypto.set(cryptoData);
     
     try {
@@ -728,7 +1976,6 @@ function extractRssImage(item) {
 }
 
 async function loadRssPosts() {
-  // Check localStorage cache first
   var cached = CACHE.rss.get();
   if (cached && cached.length > 0) {
     return cached;
@@ -777,11 +2024,9 @@ async function loadRssPosts() {
 // LOAD POSTS FROM FIRESTORE - WITH CACHE
 // ============================================
 function loadPosts() {
-  // Check localStorage cache first for immediate display
   var cachedPosts = CACHE.posts.get();
   if (cachedPosts && cachedPosts.length > 0) {
     allPosts = cachedPosts;
-    // Load RSS and merge
     loadRssPosts().then(function(rssPosts) {
       allPosts = mergeFeedPosts(cachedPosts, rssPosts);
       renderPosts();
@@ -789,11 +2034,9 @@ function loadPosts() {
       renderPosts();
     });
   } else {
-    // No cache - show loading state
     renderPosts();
   }
   
-  // Set up real-time listener for fresh data
   if (unsubscribePosts) {
     unsubscribePosts();
   }
@@ -814,7 +2057,6 @@ function loadPosts() {
             createdAt: data.createdAt?.toMillis?.() || Date.now(),
             reactions: data.reactions || { like: 0, dislike: 0, celebrate: 0, angry: 0, diamond: 0 }
           };
-          // Copy user reaction fields
           for (var key in data) {
             if (key.indexOf('userReaction_') === 0) {
               post[key] = data[key];
@@ -824,13 +2066,11 @@ function loadPosts() {
         }
       });
       
-      // Merge with existing posts
       if (newPosts.length > 0) {
         var existingIds = new Set(allPosts.map(function(p) { return p.id; }));
         var freshNewPosts = newPosts.filter(function(p) { return !existingIds.has(p.id); });
         
         if (freshNewPosts.length > 0) {
-          // Only show banner for others' posts (not user's own)
           var othersPosts = freshNewPosts.filter(function(p) { return p.userId !== String(PROFILE?.telegramId); });
           if (othersPosts.length > 0 && allPosts.length > 0) {
             newPostsCount += othersPosts.length;
@@ -841,10 +2081,8 @@ function loadPosts() {
         }
       }
       
-      // Cache posts
       CACHE.posts.set(allPosts);
       
-      // Merge with RSS and render
       loadRssPosts().then(function(rssPosts) {
         allPosts = mergeFeedPosts(allPosts, rssPosts);
         renderPosts();
@@ -853,7 +2091,6 @@ function loadPosts() {
       });
     }, function(error) {
       console.error('Posts listener error:', error);
-      // If listener fails, at least we have cached data
     });
 }
 
@@ -893,7 +2130,6 @@ function handleReaction(postId, reactionKey) {
   var post = allPosts.find(function(p) { return p.id === postId; });
   if (!post) return;
   
-  // DO NOT allow reactions on RSS posts
   if (post.isRss) {
     showToast('Reactions are not available on RSS posts.', 'error');
     return;
@@ -902,22 +2138,17 @@ function handleReaction(postId, reactionKey) {
   var userReactionKey = 'userReaction_' + PROFILE.telegramId;
   var currentReaction = post[userReactionKey] || null;
   
-  // If user already reacted with the SAME reaction, remove it (toggle off)
   if (currentReaction === reactionKey) {
     post.reactions[reactionKey] = Math.max(0, post.reactions[reactionKey] - 1);
     delete post[userReactionKey];
   } 
-  // If user is trying to react with a DIFFERENT reaction, switch
   else if (currentReaction && currentReaction !== reactionKey) {
-    // Remove previous reaction
     if (post.reactions[currentReaction] > 0) {
       post.reactions[currentReaction] = Math.max(0, post.reactions[currentReaction] - 1);
     }
-    // Add new reaction
     post.reactions[reactionKey] = (post.reactions[reactionKey] || 0) + 1;
     post[userReactionKey] = reactionKey;
   }
-  // If user hasn't reacted yet, add the reaction
   else {
     post.reactions[reactionKey] = (post.reactions[reactionKey] || 0) + 1;
     post[userReactionKey] = reactionKey;
@@ -926,7 +2157,6 @@ function handleReaction(postId, reactionKey) {
   AdManager.onReaction();
   renderPosts();
   
-  // Update Firestore
   var updateData = {
     reactions: post.reactions
   };
@@ -950,7 +2180,6 @@ function renderPosts() {
   if (!container) return;
   
   if (!allPosts || allPosts.length === 0) {
-    // Show loading if no posts yet
     if (isInitialLoad) {
       container.innerHTML = '<div class="empty-state">' +
         '<div class="icon">⏳</div>' +
@@ -982,11 +2211,9 @@ function renderPosts() {
     var isRss = post.isRss || false;
     var rssUrl = post.rssUrl || '';
     
-    // Check for YouTube URL
     var youtubeMatch = post.content ? extractYouTubeId(post.content) : null;
     var hasYoutube = youtubeMatch !== null;
     
-    // Check for link preview (non-YouTube URL)
     var linkUrl = (!hasYoutube && !thumbnail && post.content) ? extractFirstUrl(post.content) : null;
     var hasLinkPreview = linkUrl !== null && !isYouTubeUrl(linkUrl);
     
@@ -1010,7 +2237,6 @@ function renderPosts() {
     html += '</div>';
     html += '<div class="content">';
     
-    // HEADER
     html += '<div class="head">';
     html += '<span class="name">' + (post.author?.name || 'Unknown') + '</span>';
     if (isRss) {
@@ -1037,7 +2263,6 @@ function renderPosts() {
     html += '</span>';
     html += '</div>';
     
-    // CONTENT TEXT
     if (displayContent) {
       html += '<div class="text">' + linkifyText(displayContent) + (showReadMore ? '...' : '') + '</div>';
     }
@@ -1046,14 +2271,12 @@ function renderPosts() {
       html += '<span class="read-more" onclick="event.stopPropagation();openRssPost(\'' + rssUrl + '\')">Read more →</span>';
     }
     
-    // YOUTUBE EMBED
     if (hasYoutube) {
       html += '<div class="youtube-embed">';
       html += '<iframe src="https://www.youtube-nocookie.com/embed/' + youtubeMatch + '?autoplay=0&rel=0" allowfullscreen loading="lazy"></iframe>';
       html += '</div>';
     }
     
-    // IMAGES
     if (!hasYoutube && thumbnail) {
       if (!hasMultipleImages) {
         html += '<div class="post-images single-img"><img src="' + thumbnail + '" alt="Post image" loading="lazy" /></div>';
@@ -1086,15 +2309,12 @@ function renderPosts() {
       }
     }
     
-    // LINK PREVIEW (for non-YouTube URLs) - placed BEFORE reactions
     if (hasLinkPreview) {
       html += '<div id="lp-' + post.id + '" class="link-preview-placeholder"></div>';
     }
     
-    // REACTIONS AND SUPPORT - ONLY for Firestore posts (not RSS)
     html += '<div class="actions-row">';
     
-    // Only show reactions for non-RSS posts
     if (!isRss) {
       html += '<div class="reactions" onclick="event.stopPropagation()">';
       var reactionKeys = ['like', 'dislike', 'celebrate', 'angry', 'diamond'];
@@ -1110,11 +2330,9 @@ function renderPosts() {
       }
       html += '</div>';
     } else {
-      // RSS posts get a placeholder to keep alignment
       html += '<div style="flex:1;"></div>';
     }
     
-    // Creator support - show for all posts with wallet
     if (post.author?.wallet) {
       html += '<div class="creator-support" onclick="openCreatorSupport(\'' + post.author.wallet + '\')">';
       html += '<span class="diamond">💎</span>';
@@ -1129,7 +2347,6 @@ function renderPosts() {
   
   container.innerHTML = html;
   
-  // Fetch link previews after rendering
   for (var i = 0; i < allPosts.length; i++) {
     var post = allPosts[i];
     if (!post.imageUrls?.length && post.content) {
@@ -1242,14 +2459,12 @@ function renderLinkPreview(el, data, url) {
 // PROFILE FUNCTIONS - WITH CACHE
 // ============================================
 async function loadProfileByGoogleUid(googleUid) {
-  // Check cache first
   var cached = CACHE.profile.get();
   if (cached) {
     PROFILE = cached;
     userWalletAddress = PROFILE.walletAddress || null;
     updateSidebar();
     updateProfileView();
-    // Continue to fetch fresh data in background
   }
   
   try {
@@ -1281,7 +2496,6 @@ async function loadProfileByGoogleUid(googleUid) {
     return false;
   } catch(error) {
     console.error('Load profile error:', error);
-    // If we have cached profile, return true even if fresh fetch fails
     return !!cached;
   }
 }
