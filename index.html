@@ -1859,6 +1859,30 @@ function route() {
     const isCommunity = hash.startsWith("/community");
     const isMore = isAnnouncements || isCourses || isEarn || isCommunity;
     
+    // Announcements → open Telegram channel
+    if (isAnnouncements) {
+        const tgApp = window.Telegram?.WebApp;
+        if (tgApp?.openLink) {
+            tgApp.openLink('https://t.me/yongsocial', { try_instant_view: false });
+        } else {
+            window.open('https://t.me/yongsocial', '_blank');
+        }
+        location.hash = '#/';
+        return;
+    }
+
+    // Courses → open yongfinance page in the same app
+    if (isCourses) {
+        const tgApp = window.Telegram?.WebApp;
+        if (tgApp?.openLink) {
+            tgApp.openLink('https://yongsocial.github.io/sphere/yongfinance', { try_instant_view: false });
+        } else {
+            window.open('https://yongsocial.github.io/sphere/yongfinance', '_blank');
+        }
+        location.hash = '#/';
+        return;
+    }
+
     // Community view redirects to the feed page
     if (isCommunity) {
         window.location.href = 'https://yongsocial.github.io/sphere/feed.html';
