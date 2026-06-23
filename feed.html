@@ -2029,7 +2029,7 @@ function loadNewPosts() {
 }
 
 // ============================================
-// REACTION HANDLERS
+// REACTION HANDLERS - FIXED: Prevents multiple reactions
 // ============================================
 function handleReaction(postId, reactionKey) {
   if (!PROFILE) {
@@ -2043,13 +2043,23 @@ function handleReaction(postId, reactionKey) {
   var userReactionKey = 'userReaction_' + PROFILE.telegramId;
   var currentReaction = post[userReactionKey] || null;
   
+  // If user already reacted with the SAME reaction, remove it (toggle off)
   if (currentReaction === reactionKey) {
     post.reactions[reactionKey] = Math.max(0, post.reactions[reactionKey] - 1);
     delete post[userReactionKey];
-  } else {
-    if (currentReaction && post.reactions[currentReaction] > 0) {
+  } 
+  // If user is trying to react with a DIFFERENT reaction, switch
+  else if (currentReaction && currentReaction !== reactionKey) {
+    // Remove previous reaction
+    if (post.reactions[currentReaction] > 0) {
       post.reactions[currentReaction] = Math.max(0, post.reactions[currentReaction] - 1);
     }
+    // Add new reaction
+    post.reactions[reactionKey] = (post.reactions[reactionKey] || 0) + 1;
+    post[userReactionKey] = reactionKey;
+  }
+  // If user hasn't reacted yet, add the reaction
+  else {
     post.reactions[reactionKey] = (post.reactions[reactionKey] || 0) + 1;
     post[userReactionKey] = reactionKey;
   }
@@ -2057,16 +2067,21 @@ function handleReaction(postId, reactionKey) {
   AdManager.onReaction();
   renderPosts();
   
-  db.collection('posts').doc(postId).update({
+  // Update Firestore
+  var updateData = {
     reactions: post.reactions
-  }).catch(function(error) {
+  };
+  // Store the user's reaction in the post doc for persistence
+  updateData[userReactionKey] = post[userReactionKey] || null;
+  
+  db.collection('posts').doc(postId).update(updateData).catch(function(error) {
     console.error('Reaction update error:', error);
     loadPosts();
   });
 }
 
 // ============================================
-// RENDER POSTS
+// RENDER POSTS - FIXED: Reactions and support properly positioned below content
 // ============================================
 function renderPosts() {
   var container = document.getElementById('postsContainer');
@@ -2093,12 +2108,16 @@ function renderPosts() {
     var isRss = post.isRss || false;
     var rssUrl = post.rssUrl || '';
     
+    // Check for YouTube URL
     var youtubeMatch = post.content ? extractYouTubeId(post.content) : null;
     var hasYoutube = youtubeMatch !== null;
     
+    // Check for link preview (non-YouTube URL)
+    var linkUrl = (!hasYoutube && !thumbnail && post.content) ? extractFirstUrl(post.content) : null;
+    var hasLinkPreview = linkUrl !== null && !isYouTubeUrl(linkUrl);
+    
     var displayContent = post.content || '';
     var showReadMore = false;
-    var fullContent = post.content || '';
     
     if (isRss && displayContent.length > 280) {
       displayContent = displayContent.substring(0, 280);
@@ -2116,6 +2135,8 @@ function renderPosts() {
     }
     html += '</div>';
     html += '<div class="content">';
+    
+    // HEADER
     html += '<div class="head">';
     html += '<span class="name">' + (post.author?.name || 'Unknown') + '</span>';
     if (isRss) {
@@ -2139,10 +2160,10 @@ function renderPosts() {
       }
       html += '</div>';
     }
-    
     html += '</span>';
     html += '</div>';
     
+    // CONTENT TEXT
     if (displayContent) {
       html += '<div class="text">' + linkifyText(displayContent) + (showReadMore ? '...' : '') + '</div>';
     }
@@ -2151,11 +2172,15 @@ function renderPosts() {
       html += '<span class="read-more" onclick="event.stopPropagation();openRssPost(\'' + rssUrl + '\')">Read more →</span>';
     }
     
+    // YOUTUBE EMBED
     if (hasYoutube) {
       html += '<div class="youtube-embed">';
       html += '<iframe src="https://www.youtube-nocookie.com/embed/' + youtubeMatch + '?autoplay=0&rel=0" allowfullscreen loading="lazy"></iframe>';
       html += '</div>';
-    } else if (thumbnail) {
+    }
+    
+    // IMAGES
+    if (!hasYoutube && thumbnail) {
       if (!hasMultipleImages) {
         html += '<div class="post-images single-img"><img src="' + thumbnail + '" alt="Post image" loading="lazy" /></div>';
       } else {
@@ -2187,6 +2212,12 @@ function renderPosts() {
       }
     }
     
+    // LINK PREVIEW (for non-YouTube URLs) - placed BEFORE reactions
+    if (hasLinkPreview) {
+      html += '<div id="lp-' + post.id + '" class="link-preview-placeholder"></div>';
+    }
+    
+    // REACTIONS AND SUPPORT - ALWAYS AT THE BOTTOM
     html += '<div class="actions-row">';
     html += '<div class="reactions" onclick="event.stopPropagation()">';
     var reactionKeys = ['like', 'dislike', 'celebrate', 'angry', 'diamond'];
@@ -2208,21 +2239,14 @@ function renderPosts() {
       html += '</div>';
     }
     html += '</div>';
+    
     html += '</div>';
     html += '</article>';
-    
-    // Link preview for non-YouTube URLs
-    if (!hasYoutube && !thumbnail && post.content) {
-      var url = extractFirstUrl(post.content);
-      if (url && !isYouTubeUrl(url)) {
-        html += '<div id="lp-' + post.id + '" class="link-preview-placeholder"></div>';
-      }
-    }
   }
   
   container.innerHTML = html;
   
-  // Fetch link previews
+  // Fetch link previews after rendering (they will replace the placeholders)
   for (var i = 0; i < allPosts.length; i++) {
     var post = allPosts[i];
     if (!post.imageUrls?.length && post.content) {
