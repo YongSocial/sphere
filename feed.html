@@ -129,7 +129,7 @@
       min-height: calc(100vh - 64px);
     }
 
-    /* Sidebar - removed logout */
+    /* Sidebar */
     .sidebar {
       padding: 1.5rem 1rem;
       border-right: 1px solid #1f2940;
@@ -409,7 +409,6 @@
       user-select: none;
     }
 
-    /* Slides */
     .post-images .slide {
       position: absolute;
       inset: 0;
@@ -424,7 +423,6 @@
       display: block;
     }
 
-    /* Single image (no player UI) */
     .post-images.single-img img {
       width: 100%;
       height: 100%;
@@ -432,7 +430,6 @@
       display: block;
     }
 
-    /* Watermark */
     .post-images .watermark {
       position: absolute;
       top: 12px;
@@ -446,7 +443,6 @@
       text-shadow: 0 1px 4px rgba(0,0,0,0.7);
     }
 
-    /* Big center play button (shown before playing) */
     .post-images .center-play {
       position: absolute;
       inset: 0;
@@ -475,7 +471,6 @@
     }
     .post-images .center-play .play-btn:hover { transform: scale(1.08); }
 
-    /* Bottom controls bar */
     .post-images .video-controls {
       position: absolute;
       bottom: 0;
@@ -490,7 +485,6 @@
     }
     .post-images.playing .video-controls { display: flex; }
 
-    /* Progress bar */
     .post-images .progress-bar {
       width: 100%;
       height: 3px;
@@ -507,7 +501,6 @@
       width: 0%;
     }
 
-    /* Controls row */
     .post-images .ctrl-row {
       display: flex;
       align-items: center;
@@ -717,7 +710,7 @@
     }
     .link-preview.no-img .lp-img { display: none; }
 
-    /* Post Popup - Professional */
+    /* Post Popup */
     .post-overlay {
       position: fixed;
       inset: 0;
@@ -1115,7 +1108,6 @@
     .wallet-actions .btn-skip:hover { color: #e7ecf5; }
     .wallet-footer { font-size: 0.7rem; color: #5a6378; text-align: center; margin-top: 0.75rem; }
 
-    /* Empty State */
     .empty-state {
       text-align: center;
       padding: 4rem 2rem;
@@ -1125,7 +1117,6 @@
     .empty-state h3 { font-size: 1.2rem; font-weight: 700; color: #e7ecf5; margin-bottom: 0.5rem; }
     .empty-state p { font-size: 0.9rem; max-width: 400px; margin: 0 auto; }
 
-    /* Responsive */
     @media (max-width: 1024px) {
       .app-shell { grid-template-columns: 1fr; }
       .sidebar { display: none; }
@@ -1150,9 +1141,7 @@
 </head>
 <body>
 
-<!-- ============================================ -->
 <!-- HEADER -->
-<!-- ============================================ -->
 <header>
   <div class="header-inner">
     <a href="https://www.yongsocial.com/" target="_blank" rel="noreferrer" class="header-brand">
@@ -1170,24 +1159,18 @@
   </div>
 </header>
 
-<!-- ============================================ -->
 <!-- TOAST -->
-<!-- ============================================ -->
 <div id="toast" class="toast">
   <span id="toastIcon" class="icon">✅</span>
   <span id="toastMessage">Success!</span>
 </div>
 
-<!-- ============================================ -->
 <!-- NEW POSTS BANNER -->
-<!-- ============================================ -->
 <div id="newPostsBanner" class="new-posts-banner" onclick="loadNewPosts()">
   🔄 <span id="newPostsCount">0</span> new posts - Tap to load
 </div>
 
-<!-- ============================================ -->
 <!-- POST POPUP -->
-<!-- ============================================ -->
 <div id="postOverlay" class="post-overlay">
   <div class="post-modal">
     <div class="modal-header">
@@ -1220,9 +1203,7 @@
   </div>
 </div>
 
-<!-- ============================================ -->
 <!-- WALLET ADDRESS POPUP -->
-<!-- ============================================ -->
 <div id="walletOverlay" class="wallet-overlay">
   <div class="wallet-modal card">
     <div class="wallet-status">
@@ -1243,9 +1224,7 @@
   </div>
 </div>
 
-<!-- ============================================ -->
 <!-- MAIN APP -->
-<!-- ============================================ -->
 <div class="app-shell">
 
   <!-- LEFT SIDEBAR -->
@@ -1330,7 +1309,7 @@
 // ============================================
 // FIREBASE INITIALIZATION
 // ============================================
-const firebaseConfig = {
+var firebaseConfig = {
   apiKey: 'AIzaSyB8ZQSUOcHQ54eRxoC2g2IoLIGIzo6r2ME',
   authDomain: 'yong-social.firebaseapp.com',
   projectId: 'yong-social',
@@ -1343,53 +1322,61 @@ if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 
-const db = firebase.firestore();
-const auth = firebase.auth();
+var db = firebase.firestore();
+var auth = firebase.auth();
 
 // ============================================
 // CONSTANTS
 // ============================================
-const IMGBB_API_KEY = '1847c509e303548abdab86c734a109b2';
-const CACHE_TTL = 10 * 60 * 1000;
-const MAX_IMAGES = 5;
-const MAX_CHARS = 500;
+var IMGBB_API_KEY = '1847c509e303548abdab86c734a109b2';
+var CACHE_TTL = 10 * 60 * 1000;
+var MAX_IMAGES = 5;
+var MAX_CHARS = 500;
+var RSS_FEED_URL = 'https://www.yongsocial.com/feeds/posts/default?alt=rss';
+var RSS_PROXY = 'https://api.rss2json.com/v1/api.json?rss_url=';
+var RSS_TTL = 15 * 60 * 1000;
+var OG_PROXY = 'https://yongsocial.yongcomics.workers.dev/';
+var YONG_TREASURY = 'UQDf2YHL2A8EpYO7QO233qUmqOsH7NEj5ZAY7HvwtikQunwB';
 
 // ============================================
 // STATE
 // ============================================
-let PROFILE = null;
-let TON_PRICE = 2.50;
-let userWalletAddress = null;
-let currentUser = null;
-let cryptoData = [];
-let allPosts = [];
-let postsCache = { data: [], timestamp: 0 };
-let selectedFiles = [];
-let isSubmitting = false;
-let newPostsCount = 0;
-let unsubscribePosts = null;
+var PROFILE = null;
+var TON_PRICE = 2.50;
+var userWalletAddress = null;
+var currentUser = null;
+var cryptoData = [];
+var allPosts = [];
+var postsCache = { data: [], timestamp: 0 };
+var rssPostsCache = { data: [], timestamp: 0 };
+var selectedFiles = [];
+var isSubmitting = false;
+var newPostsCount = 0;
+var unsubscribePosts = null;
+var _ogCache = {};
+var _players = {};
 
 // ============================================
 // AD MANAGER
 // ============================================
-const AdManager = {
+var AdManager = {
   COOLDOWN: 60000,
   lastAdTime: 0,
 
-  _counters() {
-    const raw = sessionStorage.getItem('_adCtrs');
+  _counters: function() {
+    var raw = sessionStorage.getItem('_adCtrs');
     return raw ? JSON.parse(raw) : { reaction: 0, appOpen: 0, post: 0, tabSwitch: 0 };
   },
 
-  _save(ctrs) {
+  _save: function(ctrs) {
     sessionStorage.setItem('_adCtrs', JSON.stringify(ctrs));
   },
 
-  _canShow() {
+  _canShow: function() {
     return Date.now() - this.lastAdTime >= this.COOLDOWN;
   },
 
-  _show() {
+  _show: function() {
     if (!this._canShow()) return false;
     try {
       if (typeof show_11190801 === 'function') show_11190801();
@@ -1398,30 +1385,30 @@ const AdManager = {
     return true;
   },
 
-  onReaction() {
-    const c = this._counters();
+  onReaction: function() {
+    var c = this._counters();
     c.reaction++;
     if (c.reaction % 3 === 0) this._show();
     this._save(c);
   },
 
-  onAppOpen() {
-    const c = this._counters();
+  onAppOpen: function() {
+    var c = this._counters();
     c.appOpen++;
     if (c.appOpen % 3 === 0) this._show();
     this._save(c);
   },
 
-  onPost() {
-    const c = this._counters();
+  onPost: function() {
+    var c = this._counters();
     c.post++;
     if (c.post === 1 || c.post % 3 === 0) this._show();
     this._save(c);
   },
 
-  onTabSwitch() {
+  onTabSwitch: function() {
     if (this._skipNext) { this._skipNext = false; return; }
-    const c = this._counters();
+    var c = this._counters();
     c.tabSwitch++;
     if (c.tabSwitch % 3 === 0) this._show();
     this._save(c);
@@ -1433,30 +1420,45 @@ const AdManager = {
 // ============================================
 function switchView(view) {
   AdManager.onTabSwitch();
-  const feedView = document.getElementById('feedView');
-  const profileView = document.getElementById('profileView');
+  var feedView = document.getElementById('feedView');
+  var profileView = document.getElementById('profileView');
   
   if (view === 'feed') {
     feedView.style.display = 'block';
     profileView.classList.remove('active');
     profileView.style.display = 'none';
-    document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
-    document.querySelector('.nav-link[data-view="feed"]')?.classList.add('active');
-    document.querySelectorAll('.sidebar .nav-item').forEach(el => el.classList.remove('active'));
-    document.querySelector('.sidebar .nav-item:first-child')?.classList.add('active');
-    document.querySelectorAll('.bottomnav .nav-item').forEach(el => el.classList.remove('active'));
-    document.querySelector('.bottomnav .nav-item:first-child')?.classList.add('active');
+    var navLinks = document.querySelectorAll('.nav-link');
+    for (var i = 0; i < navLinks.length; i++) { navLinks[i].classList.remove('active'); }
+    var feedNav = document.querySelector('.nav-link[data-view="feed"]');
+    if (feedNav) feedNav.classList.add('active');
+    
+    var sidebarItems = document.querySelectorAll('.sidebar .nav-item');
+    for (var j = 0; j < sidebarItems.length; j++) { sidebarItems[j].classList.remove('active'); }
+    if (sidebarItems[0]) sidebarItems[0].classList.add('active');
+    
+    var bottomItems = document.querySelectorAll('.bottomnav .nav-item');
+    for (var k = 0; k < bottomItems.length; k++) { bottomItems[k].classList.remove('active'); }
+    if (bottomItems[0]) bottomItems[0].classList.add('active');
+    
     if (PROFILE) updateProfileView();
   } else if (view === 'profile') {
     feedView.style.display = 'none';
     profileView.style.display = 'block';
     profileView.classList.add('active');
-    document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
-    document.querySelector('.nav-link[data-view="profile"]')?.classList.add('active');
-    document.querySelectorAll('.sidebar .nav-item').forEach(el => el.classList.remove('active'));
-    document.querySelector('.sidebar .nav-item:nth-child(2)')?.classList.add('active');
-    document.querySelectorAll('.bottomnav .nav-item').forEach(el => el.classList.remove('active'));
-    document.querySelector('.bottomnav .nav-item:nth-child(2)')?.classList.add('active');
+    
+    var navLinks2 = document.querySelectorAll('.nav-link');
+    for (var l = 0; l < navLinks2.length; l++) { navLinks2[l].classList.remove('active'); }
+    var profileNav = document.querySelector('.nav-link[data-view="profile"]');
+    if (profileNav) profileNav.classList.add('active');
+    
+    var sidebarItems2 = document.querySelectorAll('.sidebar .nav-item');
+    for (var m = 0; m < sidebarItems2.length; m++) { sidebarItems2[m].classList.remove('active'); }
+    if (sidebarItems2[1]) sidebarItems2[1].classList.add('active');
+    
+    var bottomItems2 = document.querySelectorAll('.bottomnav .nav-item');
+    for (var n = 0; n < bottomItems2.length; n++) { bottomItems2[n].classList.remove('active'); }
+    if (bottomItems2[1]) bottomItems2[1].classList.add('active');
+    
     if (PROFILE) updateProfileView();
   }
 }
@@ -1464,7 +1466,7 @@ function switchView(view) {
 function updateProfileView() {
   if (!PROFILE) return;
   
-  const avatar = document.getElementById('profileAvatar');
+  var avatar = document.getElementById('profileAvatar');
   if (PROFILE.photoUrl) {
     avatar.innerHTML = '<img src="' + PROFILE.photoUrl + '" alt="" />';
   } else {
@@ -1476,7 +1478,7 @@ function updateProfileView() {
   document.getElementById('profileBio').textContent = PROFILE.bio || 'No bio yet.';
   document.getElementById('profileTgId').textContent = PROFILE.telegramId;
   
-  const walletEl = document.getElementById('profileWallet');
+  var walletEl = document.getElementById('profileWallet');
   if (PROFILE.walletAddress) {
     walletEl.innerHTML = '<span class="wallet-address">' + PROFILE.walletAddress + '</span>';
   } else {
@@ -1484,7 +1486,7 @@ function updateProfileView() {
     walletEl.style.color = '#8a93a8';
   }
   
-  const statusEl = document.getElementById('profileStatus');
+  var statusEl = document.getElementById('profileStatus');
   if (PROFILE.paymentStatus === 'paid') {
     statusEl.innerHTML = '✅ Treasury Verified';
     statusEl.style.color = '#22c984';
@@ -1499,9 +1501,9 @@ function updateProfileView() {
 // ============================================
 function showToast(message, type) {
   type = type || 'success';
-  const toast = document.getElementById('toast');
-  const icon = document.getElementById('toastIcon');
-  const msg = document.getElementById('toastMessage');
+  var toast = document.getElementById('toast');
+  var icon = document.getElementById('toastIcon');
+  var msg = document.getElementById('toastMessage');
   toast.className = 'toast show ' + type;
   icon.textContent = type === 'success' ? '✅' : '❌';
   msg.textContent = message;
@@ -1652,12 +1654,6 @@ function extractYouTubeId(url) {
 
 function isYouTubeUrl(url) {
   return url && (url.indexOf('youtube.com') !== -1 || url.indexOf('youtu.be') !== -1);
-}
-
-function getYouTubeEmbedUrl(url) {
-  var id = extractYouTubeId(url);
-  if (!id) return null;
-  return 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0';
 }
 
 // ============================================
@@ -1873,6 +1869,77 @@ async function submitPost() {
 }
 
 // ============================================
+// RSS FEED SYSTEM
+// ============================================
+function rssPostId(url) {
+  var hash = 0;
+  for (var i = 0; i < url.length; i++) {
+    hash = ((hash << 5) - hash) + url.charCodeAt(i);
+    hash |= 0;
+  }
+  return 'rss_' + Math.abs(hash).toString(36);
+}
+
+function stripHtml(html) {
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ')
+             .replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+             .replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+             .replace(/&#39;/g, "'").trim();
+}
+
+function extractRssImage(item) {
+  var src = (item.enclosure?.link) ||
+    (item.content || item.description || '').match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] ||
+    (item.thumbnail) || null;
+  return src || null;
+}
+
+async function loadRssPosts() {
+  var now = Date.now();
+  if (rssPostsCache.data.length > 0 && (now - rssPostsCache.timestamp) < RSS_TTL) {
+    return rssPostsCache.data;
+  }
+
+  try {
+    var res = await fetch(RSS_PROXY + encodeURIComponent(RSS_FEED_URL));
+    var json = await res.json();
+    if (json.status !== 'ok' || !Array.isArray(json.items)) return rssPostsCache.data;
+
+    var posts = json.items.map(function(item) {
+      var id = rssPostId(item.link || item.guid || item.title);
+      var pubDate = item.pubDate ? new Date(item.pubDate).getTime() : now;
+      var imgUrl = extractRssImage(item);
+      var snippet = stripHtml(item.description || item.content || '').slice(0, 280);
+      var title = item.title || '';
+      var content = title + (snippet ? '\n\n' + snippet : '');
+
+      return {
+        id: id,
+        isRss: true,
+        rssUrl: item.link || item.guid,
+        userId: 'yong_team',
+        author: {
+          name: 'Yong Team',
+          handle: '@YongTeam',
+          pfp: 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhu_7mdnTHeYcrLaxRY0veIDVO6Pb0Pk4ngLKZupHTxufcBF3hwrlsgIxyXHfiDu_NywzKTnvLoGuh37Lv6k1Qkl0Q5HlHFn_sOa6ow8cL2TGXee1kSl6Uohtv_SggJ1UBhfNpUG4ClC1kPMkpC7Am3wX3cmDve4a95uvhmjNfF97aP2-hUVpX_Wk2dh56a/s1200/file_00000000814c720aa68fca8155db1cab_copy_1200x630.png',
+          wallet: YONG_TREASURY,
+        },
+        content: content,
+        imageUrls: imgUrl ? [imgUrl] : [],
+        createdAt: pubDate,
+        reactions: { like: 0, dislike: 0, celebrate: 0, angry: 0, diamond: 0 },
+      };
+    });
+
+    rssPostsCache = { data: posts, timestamp: now };
+    return posts;
+  } catch(e) {
+    console.warn('RSS fetch failed:', e);
+    return rssPostsCache.data;
+  }
+}
+
+// ============================================
 // LOAD POSTS FROM FIRESTORE
 // ============================================
 function loadPosts() {
@@ -1925,10 +1992,32 @@ function loadPosts() {
       
       postsCache.data = allPosts;
       postsCache.timestamp = Date.now();
-      renderPosts();
+      
+      // Merge with RSS posts
+      loadRssPosts().then(function(rssPosts) {
+        allPosts = mergeFeedPosts(postsCache.data, rssPosts);
+        renderPosts();
+      }).catch(function() { renderPosts(); });
     }, function(error) {
       console.error('Posts listener error:', error);
     });
+}
+
+function mergeFeedPosts(firestorePosts, rssPosts) {
+  var seen = new Set();
+  var combined = firestorePosts.concat(rssPosts);
+  var result = [];
+  for (var i = 0; i < combined.length; i++) {
+    var p = combined[i];
+    if (!seen.has(p.id)) {
+      seen.add(p.id);
+      result.push(p);
+    }
+  }
+  result.sort(function(a, b) {
+    return b.createdAt - a.createdAt;
+  });
+  return result;
 }
 
 function loadNewPosts() {
@@ -2001,14 +2090,24 @@ function renderPosts() {
     var images = post.imageUrls || [];
     var hasMultipleImages = images.length > 1;
     var thumbnail = images.length > 0 ? images[0] : null;
+    var isRss = post.isRss || false;
+    var rssUrl = post.rssUrl || '';
     
     var youtubeMatch = post.content ? extractYouTubeId(post.content) : null;
     var hasYoutube = youtubeMatch !== null;
     
     var displayContent = post.content || '';
     var showReadMore = false;
+    var fullContent = post.content || '';
     
-    html += '<article class="tweet" data-post="' + post.id + '">';
+    if (isRss && displayContent.length > 280) {
+      displayContent = displayContent.substring(0, 280);
+      showReadMore = true;
+    }
+    
+    var postClick = isRss ? ' onclick="openRssPost(\'' + rssUrl + '\')" style="cursor:pointer"' : '';
+    
+    html += '<article class="tweet" data-post="' + post.id + '"' + postClick + '>';
     html += '<div class="pfp">';
     if (post.author?.pfp && post.author.pfp.indexOf('http') === 0) {
       html += '<img src="' + post.author.pfp + '" alt="" />';
@@ -2019,22 +2118,37 @@ function renderPosts() {
     html += '<div class="content">';
     html += '<div class="head">';
     html += '<span class="name">' + (post.author?.name || 'Unknown') + '</span>';
+    if (isRss) {
+      html += '<span class="verified" title="Official Yong Team post">✦</span>';
+    }
     html += '<span class="handle">' + (post.author?.handle || '@unknown') + '</span>';
     html += '<span class="time">· ' + timeAgo(post.createdAt) + '</span>';
     html += '<span class="right">';
-    html += '<div class="post-menu-wrap">';
-    html += '<button class="post-menu-btn" onclick="togglePostMenu(event,\'' + post.id + '\')"><i class="fa-solid fa-ellipsis-vertical"></i></button>';
-    if (post.userId === String(PROFILE?.telegramId)) {
-      html += '<div class="post-menu-dropdown" id="menu-' + post.id + '">';
-      html += '<button onclick="deletePost(\'' + post.id + '\')"><i class="fa-solid fa-trash"></i> Delete</button>';
+    
+    if (isRss) {
+      html += '<button class="post-menu-btn" onclick="event.stopPropagation();openRssPost(\'' + rssUrl + '\')" title="Read article">';
+      html += '<i class="fa-solid fa-arrow-up-right-from-square"></i>';
+      html += '</button>';
+    } else {
+      html += '<div class="post-menu-wrap">';
+      html += '<button class="post-menu-btn" onclick="togglePostMenu(event,\'' + post.id + '\')"><i class="fa-solid fa-ellipsis-vertical"></i></button>';
+      if (post.userId === String(PROFILE?.telegramId)) {
+        html += '<div class="post-menu-dropdown" id="menu-' + post.id + '">';
+        html += '<button onclick="deletePost(\'' + post.id + '\')"><i class="fa-solid fa-trash"></i> Delete</button>';
+        html += '</div>';
+      }
       html += '</div>';
     }
-    html += '</div>';
+    
     html += '</span>';
     html += '</div>';
     
     if (displayContent) {
-      html += '<div class="text">' + linkifyText(displayContent) + '</div>';
+      html += '<div class="text">' + linkifyText(displayContent) + (showReadMore ? '...' : '') + '</div>';
+    }
+    
+    if (showReadMore) {
+      html += '<span class="read-more" onclick="event.stopPropagation();openRssPost(\'' + rssUrl + '\')">Read more →</span>';
     }
     
     if (hasYoutube) {
@@ -2096,9 +2210,28 @@ function renderPosts() {
     html += '</div>';
     html += '</div>';
     html += '</article>';
+    
+    // Link preview for non-YouTube URLs
+    if (!hasYoutube && !thumbnail && post.content) {
+      var url = extractFirstUrl(post.content);
+      if (url && !isYouTubeUrl(url)) {
+        html += '<div id="lp-' + post.id + '" class="link-preview-placeholder"></div>';
+      }
+    }
   }
   
   container.innerHTML = html;
+  
+  // Fetch link previews
+  for (var i = 0; i < allPosts.length; i++) {
+    var post = allPosts[i];
+    if (!post.imageUrls?.length && post.content) {
+      var url = extractFirstUrl(post.content);
+      if (url && !isYouTubeUrl(url)) {
+        fetchLinkPreview(url, post.id);
+      }
+    }
+  }
 }
 
 // ============================================
@@ -2136,6 +2269,11 @@ async function deletePost(postId) {
   }
 }
 
+function openRssPost(url) {
+  if (!url) return;
+  window.open(url, '_blank');
+}
+
 // ============================================
 // TIME AGO HELPER
 // ============================================
@@ -2171,6 +2309,32 @@ function linkifyText(text) {
       if (isYouTubeUrl(match)) return match;
       return '<a href="' + match + '" target="_blank" rel="noopener" style="color:#d4b25a;text-decoration:underline;word-break:break-all;">' + match + '</a>';
     });
+}
+
+async function fetchLinkPreview(url, postId) {
+  var el = document.getElementById('lp-' + postId);
+  if (!el) return;
+
+  if (_ogCache[url]) { renderLinkPreview(el, _ogCache[url], url); return; }
+
+  try {
+    var res = await fetch(OG_PROXY + '?url=' + encodeURIComponent(url));
+    var data = await res.json();
+    if (data.error) return;
+    _ogCache[url] = data;
+    renderLinkPreview(el, data, url);
+  } catch(e) { /* silently fail */ }
+}
+
+function renderLinkPreview(el, data, url) {
+  el.outerHTML = '<a class="link-preview' + (data.image ? '' : ' no-img') + '" href="' + url + '" target="_blank" rel="noopener">' +
+    (data.image ? '<img class="lp-img" src="' + data.image + '" alt="" loading="lazy" onerror="this.parentElement.classList.add(\'no-img\');this.remove();" />' : '') +
+    '<div class="lp-body">' +
+    '<div class="lp-site">' + (data.siteName || new URL(url).hostname) + '</div>' +
+    (data.title ? '<div class="lp-title">' + data.title + '</div>' : '') +
+    (data.description ? '<div class="lp-desc">' + data.description + '</div>' : '') +
+    '</div>' +
+    '</a>';
 }
 
 // ============================================
@@ -2256,28 +2420,6 @@ function openCreatorSupport(postCreatorAddress) {
 }
 
 // ============================================
-// COMMUNITY STATS
-// ============================================
-async function loadCommunityStats() {
-  try {
-    var snap = await db.collection('config').doc('community').get();
-    if (snap.exists) {
-      var data = snap.data();
-      var statsEl = document.querySelector('#communityStats');
-      if (statsEl) {
-        var rows = statsEl.querySelectorAll('.flex');
-        if (rows.length >= 2) {
-          rows[0].querySelector('.font-bold').textContent = (data.totalUsers || 0).toLocaleString();
-          rows[1].querySelector('.font-bold').textContent = (data.totalPosts || 0).toLocaleString();
-        }
-      }
-    }
-  } catch(e) {
-    console.warn('Community stats error:', e);
-  }
-}
-
-// ============================================
 // WALLET HANDLERS
 // ============================================
 document.getElementById('saveWalletBtn').addEventListener('click', async function() {
@@ -2342,7 +2484,6 @@ auth.onAuthStateChanged(async function(user) {
     try {
       var profileFound = await loadProfileByGoogleUid(user.uid);
       if (profileFound) {
-        loadCommunityStats();
         AdManager.onAppOpen();
         await getTONPrice();
         updateProfileView();
@@ -2384,8 +2525,6 @@ auth.onAuthStateChanged(async function(user) {
 // ============================================
 // INLINE IMAGE VIDEO PLAYER
 // ============================================
-var _players = {};
-
 function startPlayer(postId) {
   var vp = document.getElementById('vp-' + postId);
   if (!vp) return;
