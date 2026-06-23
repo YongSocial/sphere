@@ -124,7 +124,7 @@
       max-width: 1280px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: 240px 1fr 300px;
+      grid-template-columns: 240px 1fr;
       gap: 0;
       min-height: calc(100vh - 64px);
     }
@@ -214,23 +214,7 @@
       border: 1px solid #1f2940;
     }
 
-    .logout-btn {
-      background: transparent;
-      border: 1px solid #ef4444;
-      color: #ef4444;
-      border-radius: 9999px;
-      padding: 0.4rem 1rem;
-      font-size: 0.75rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-top: 0.5rem;
-    }
-    .logout-btn:hover {
-      background: #ef4444;
-      color: #fff;
-    }
-
-    .feed-col { border-right: 1px solid #1f2940; min-width: 0; }
+    .feed-col { min-width: 0; }
     
     /* Rotating Ticker */
     .ticker-wrapper {
@@ -653,6 +637,41 @@
       font-family: 'Inter', sans-serif;
     }
     .post-menu-dropdown button:hover { background: rgba(239,68,68,0.08); }
+
+    /* YouTube Embed */
+    .yt-embed-wrap {
+      margin-top: 0.6rem;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #000;
+    }
+    .yt-embed-wrap iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    /* RSS Read More */
+    .rss-read-more {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      margin-top: 0.4rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #d4b25a;
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      text-decoration: none;
+    }
+    .rss-read-more:hover { text-decoration: underline; }
 
     /* Link Preview Card */
     .link-preview {
@@ -1303,7 +1322,6 @@
         <div id="sidebarHandle" class="handle">@user</div>
       </div>
     </div>
-    <button id="logoutBtn" class="logout-btn" style="display:none;">🚪 Logout</button>
   </aside>
 
   <!-- CENTER FEED -->
@@ -1352,35 +1370,8 @@
     </div>
   </section>
 
-  <!-- RIGHT WIDGETS -->
-  <aside class="widgets">
-    <div class="search-box">
-      <i class="fa-solid fa-magnifying-glass"></i>
-      <span>Search</span>
-    </div>
-    <div class="widget">
-      <h3>Trends for you</h3>
-      <div class="trend">
-        <div><div class="trend-title">Yong Social</div><div class="trend-meta">1.2K posts</div></div>
-        <i class="fa-solid fa-ellipsis" style="color:#8a93a8;"></i>
-      </div>
-      <div class="trend">
-        <div><div class="trend-title">Creator Support</div><div class="trend-meta">340 posts</div></div>
-        <i class="fa-solid fa-ellipsis" style="color:#8a93a8;"></i>
-      </div>
-      <div class="trend">
-        <div><div class="trend-title">TON Community</div><div class="trend-meta">890 posts</div></div>
-        <i class="fa-solid fa-ellipsis" style="color:#8a93a8;"></i>
-      </div>
-    </div>
-    <div class="widget">
-      <h3>Community Stats</h3>
-      <div id="communityStats" class="space-y-2 text-sm">
-        <div class="flex justify-between"><span class="text-mute">Members</span><span class="font-bold">—</span></div>
-        <div class="flex justify-between"><span class="text-mute">Posts</span><span class="font-bold">—</span></div>
-      </div>
-    </div>
-  </aside>
+  <!-- Community stats hidden div kept for JS compatibility -->
+  <div id="communityStats" style="display:none;"></div>
 </div>
 
 <!-- MOBILE FAB -->
@@ -2350,7 +2341,7 @@ function renderPosts() {
     const thumbnail = images.length > 0 ? images[0] : null;
     
     return `
-    <article class="tweet" data-post="${post.id}" ${post.isRss ? `onclick="openRssPost('${post.rssUrl}')" style="cursor:pointer"` : ''}>
+    <article class="tweet" data-post="${post.id}">
       <div class="pfp">
         ${post.author?.pfp && post.author.pfp.startsWith('http') 
           ? `<img src="${post.author.pfp}" alt="" />` 
@@ -2376,9 +2367,21 @@ function renderPosts() {
             </div>`}
           </span>
         </div>
-        ${post.content ? `<div class="text">${linkifyText(post.content)}</div>` : ''}
+        ${post.content ? (() => {
+          const ytId = extractYouTubeId(post.content);
+          if (post.isRss) {
+            // RSS: truncate at 180 chars, show ... Read more
+            const plain = post.content;
+            const truncated = plain.length > 180 ? plain.slice(0, 180).trimEnd() + '…' : plain;
+            return `<div class="text">${linkifyText(truncated)}</div>
+              <a class="rss-read-more" href="${post.rssUrl}" target="_blank" rel="noreferrer" onclick="event.stopPropagation()">
+                Read more <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.7rem;"></i>
+              </a>`;
+          }
+          return `<div class="text">${linkifyText(post.content)}</div>${ytId ? youtubeEmbedHtml(ytId) : ''}`;
+        })() : ''}
         
-        ${!thumbnail && post.content ? (() => {
+        ${!thumbnail && post.content && !extractYouTubeId(post.content) ? (() => {
           const url = extractFirstUrl(post.content);
           return url ? `<div id="lp-${post.id}" class="link-preview-placeholder"></div>` : '';
         })() : ''}
@@ -2476,6 +2479,25 @@ function timeAgo(timestamp) {
   if (hours < 24) return `${hours}h`;
   if (days < 7) return `${days}d`;
   return new Date(timestamp).toLocaleDateString();
+}
+
+// ============================================
+// YOUTUBE HELPERS
+// ============================================
+function extractYouTubeId(text) {
+  if (!text) return null;
+  // Matches: youtu.be/ID, youtube.com/watch?v=ID, /shorts/ID, /live/ID, /embed/ID
+  const m = text.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|(?:shorts|live|embed)\/))([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function youtubeEmbedHtml(videoId) {
+  // nocookie domain, lazy load, allow fullscreen
+  return `<div class="yt-embed-wrap">
+    <iframe src="https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1" 
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+      allowfullscreen loading="lazy"></iframe>
+  </div>`;
 }
 
 // ============================================
