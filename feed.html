@@ -1939,28 +1939,36 @@ function handleReaction(postId, reactionKey) {
   // Check if user already reacted
   const userReactionKey = `userReaction_${PROFILE.telegramId}`;
   const currentReaction = post[userReactionKey] || null;
-  
-  // Update local state
+
+  let firestoreUpdate;
+
   if (currentReaction === reactionKey) {
-    // Remove reaction (toggle off)
+    // Same button tapped — unreact
     post.reactions[reactionKey] = Math.max(0, post.reactions[reactionKey] - 1);
     delete post[userReactionKey];
+    firestoreUpdate = {
+      reactions: post.reactions,
+      [userReactionKey]: firebase.firestore.FieldValue.delete()
+    };
+  } else if (currentReaction) {
+    // Already reacted with a different reaction — block the switch
+    showToast('You can only unreact, not change your reaction.', 'error');
+    return;
   } else {
-    // Remove previous reaction if any
-    if (currentReaction && post.reactions[currentReaction] > 0) {
-      post.reactions[currentReaction] = Math.max(0, post.reactions[currentReaction] - 1);
-    }
+    // No existing reaction — add new one
     post.reactions[reactionKey] = (post.reactions[reactionKey] || 0) + 1;
     post[userReactionKey] = reactionKey;
+    firestoreUpdate = {
+      reactions: post.reactions,
+      [userReactionKey]: reactionKey
+    };
   }
-  
+
   // Update UI
   renderPosts();
-  
+
   // Update Firestore
-  db.collection('posts').doc(postId).update({
-    reactions: post.reactions
-  }).catch(error => {
+  db.collection('posts').doc(postId).update(firestoreUpdate).catch(error => {
     console.error('Reaction update error:', error);
     // Revert on error
     loadPosts();
