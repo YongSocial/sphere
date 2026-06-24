@@ -1318,13 +1318,24 @@ var CRYPTO_CACHE_TTL = 60 * 60 * 1000;
 var PROFILE_CACHE_TTL = 5 * 60 * 1000;
 
 // ============================================
-// CACHE HELPERS
+// CACHE HELPERS - FIXED: Per-user caching
 // ============================================
+var currentGoogleUid = null;
+
 var CACHE = {
+  // Helper to get user-specific cache key
+  _getUserKey: function(baseKey) {
+    if (currentGoogleUid) {
+      return baseKey + '_' + currentGoogleUid;
+    }
+    return baseKey + '_anonymous';
+  },
+
   posts: {
     get: function() {
       try {
-        var raw = localStorage.getItem('ys.posts.cache');
+        var key = CACHE._getUserKey('ys.posts.cache');
+        var raw = localStorage.getItem(key);
         if (!raw) return null;
         var data = JSON.parse(raw);
         var age = Date.now() - data.timestamp;
@@ -1334,7 +1345,8 @@ var CACHE = {
     },
     set: function(data) {
       try {
-        localStorage.setItem('ys.posts.cache', JSON.stringify({
+        var key = CACHE._getUserKey('ys.posts.cache');
+        localStorage.setItem(key, JSON.stringify({
           data: data,
           timestamp: Date.now(),
           day: getUTCDay()
@@ -1346,7 +1358,8 @@ var CACHE = {
   rss: {
     get: function() {
       try {
-        var raw = localStorage.getItem('ys.rss.cache');
+        var key = CACHE._getUserKey('ys.rss.cache');
+        var raw = localStorage.getItem(key);
         if (!raw) return null;
         var data = JSON.parse(raw);
         var age = Date.now() - data.timestamp;
@@ -1356,7 +1369,8 @@ var CACHE = {
     },
     set: function(data) {
       try {
-        localStorage.setItem('ys.rss.cache', JSON.stringify({
+        var key = CACHE._getUserKey('ys.rss.cache');
+        localStorage.setItem(key, JSON.stringify({
           data: data,
           timestamp: Date.now(),
           day: getUTCDay()
@@ -1368,7 +1382,8 @@ var CACHE = {
   crypto: {
     get: function() {
       try {
-        var raw = localStorage.getItem('ys.crypto.cache');
+        var key = CACHE._getUserKey('ys.crypto.cache');
+        var raw = localStorage.getItem(key);
         if (!raw) return null;
         var data = JSON.parse(raw);
         var age = Date.now() - data.timestamp;
@@ -1378,7 +1393,8 @@ var CACHE = {
     },
     set: function(data) {
       try {
-        localStorage.setItem('ys.crypto.cache', JSON.stringify({
+        var key = CACHE._getUserKey('ys.crypto.cache');
+        localStorage.setItem(key, JSON.stringify({
           data: data,
           timestamp: Date.now(),
           day: getUTCDay()
@@ -1390,7 +1406,8 @@ var CACHE = {
   profile: {
     get: function() {
       try {
-        var raw = localStorage.getItem('ys.profile.cache');
+        var key = CACHE._getUserKey('ys.profile.cache');
+        var raw = localStorage.getItem(key);
         if (!raw) return null;
         var data = JSON.parse(raw);
         var age = Date.now() - data.timestamp;
@@ -1400,12 +1417,28 @@ var CACHE = {
     },
     set: function(data) {
       try {
-        localStorage.setItem('ys.profile.cache', JSON.stringify({
+        var key = CACHE._getUserKey('ys.profile.cache');
+        localStorage.setItem(key, JSON.stringify({
           data: data,
           timestamp: Date.now()
         }));
       } catch(e) {}
     }
+  },
+  
+  // Clear all cache for current user (useful for logout)
+  clearAll: function() {
+    try {
+      var keys = [
+        CACHE._getUserKey('ys.posts.cache'),
+        CACHE._getUserKey('ys.rss.cache'),
+        CACHE._getUserKey('ys.crypto.cache'),
+        CACHE._getUserKey('ys.profile.cache')
+      ];
+      for (var i = 0; i < keys.length; i++) {
+        localStorage.removeItem(keys[i]);
+      }
+    } catch(e) {}
   }
 };
 
@@ -2456,9 +2489,12 @@ function renderLinkPreview(el, data, url) {
 }
 
 // ============================================
-// PROFILE FUNCTIONS - WITH CACHE
+// PROFILE FUNCTIONS - WITH PER-USER CACHE
 // ============================================
 async function loadProfileByGoogleUid(googleUid) {
+  currentGoogleUid = googleUid; // Set the current user ID for cache keys
+  
+  // Check cache first - now per-user
   var cached = CACHE.profile.get();
   if (cached) {
     PROFILE = cached;
@@ -2643,6 +2679,9 @@ auth.onAuthStateChanged(async function(user) {
       showToast('Error loading profile: ' + error.message, 'error');
     }
   } else {
+    // User signed out - clear the user-specific cache
+    currentGoogleUid = null;
+    CACHE.clearAll();
     showToast('Please sign in to access the community.', 'error');
     setTimeout(function() {
       window.location.href = 'https://yongsocial.github.io/sphere/';
