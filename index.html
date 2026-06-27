@@ -1949,13 +1949,12 @@ window.openSourcesModal = openSourcesModal;
     const rawTitle = (entry && entry.title && entry.title.$t) || 'Yong Social';
     const title = rawTitle.length > 100 ? rawTitle.slice(0, 97) + '...' : rawTitle;
     const link = (typeof getPostLink==='function') ? getPostLink(entry) : '';
-    const rawTags = (entry.category||[]).map(c=>(c.term||'').trim()).filter(Boolean);
-    const tagSet = rawTags.slice(0,3);
-    tagSet.push('YongSocial');
+    const rawTags = (entry.category||[]).map(c=>(c.term||'').trim().replace(/\s+/g,'')).filter(Boolean);
+    const tagSet = [rawTags[0] || 'Finance', 'YongSocial'];
     const hashtags = tagSet.map(t=>'#'+t).join(' ');
     const prefix = pick(SHARE_PREFIXES);
     const cta = pick(SHARE_CTAS);
-    const post = prefix + ' ' + title + '\n\n' + hashtags + '\n\n' + cta + '\n' + link;
+    const post = prefix + ' ' + title + '\n' + link + '\n\n' + hashtags + '\n\n' + cta;
     return { post, link };
   }
   window.smartShare = function(platform, idx){
