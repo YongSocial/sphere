@@ -68,31 +68,6 @@
   .ys-act-text{font-size:13px;color:var(--text);line-height:1.4}
   .ys-act-amt{color:#fff;font-weight:700}
   .ys-act-time{font-size:11px;color:var(--muted);margin-top:2px}
-  /* Asset rows (live crypto) */
-  .ys-asset-row{display:flex;align-items:center;gap:12px;padding:10px;border:1px solid rgba(255,122,24,.35);border-radius:12px;background:rgba(255,122,24,.04);margin-top:8px}
-  .ys-asset-row:first-child{margin-top:0}
-  .ys-asset-logo{width:40px;height:40px;border-radius:50%;flex-shrink:0;background:#1a1f2b;display:grid;place-items:center;overflow:hidden}
-  .ys-asset-logo img{width:100%;height:100%;object-fit:cover}
-  .ys-asset-meta{flex:1;min-width:0}
-  .ys-asset-name{font-weight:700;font-size:14px;color:#fff}
-  .ys-asset-sym{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-left:6px;font-weight:600}
-  .ys-asset-price{font-variant-numeric:tabular-nums;font-size:13px;color:#fff;font-weight:600;margin-top:2px;display:flex;align-items:center;gap:8px}
-  .ys-asset-chg{font-size:11px;font-weight:700;padding:2px 6px;border-radius:999px;font-variant-numeric:tabular-nums}
-  .ys-asset-chg.up{color:#22c55e;background:rgba(34,197,94,.12)}
-  .ys-asset-chg.down{color:#ef4444;background:rgba(239,68,68,.12)}
-  .ys-view-chart{background:linear-gradient(135deg,#ff7a18,#c2410c);color:#fff;font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;border:none;cursor:pointer;white-space:nowrap;flex-shrink:0}
-  .ys-view-chart:hover{filter:brightness(1.1)}
-  /* Modal */
-  .ys-modal{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);padding:16px}
-  .ys-modal.open{display:flex}
-  .ys-modal-card{background:#0f1218;border:1px solid var(--border);border-radius:16px;width:100%;max-width:720px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
-  .ys-modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
-  .ys-modal-head h3{margin:0;color:#fff;font-size:16px;font-weight:800}
-  .ys-modal-close{background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;width:34px;height:34px;border-radius:8px}
-  .ys-modal-close:hover{background:var(--surface)}
-  .ys-modal-body{flex:1;overflow:auto}
-  .ys-modal-body iframe{width:100%;height:480px;border:0;display:block}
-  .ys-allist{padding:8px 12px 14px}
 
   /* APP SHELL */
   .app{max-width:780px;margin:0 auto;padding-bottom:84px;min-height:100dvh}
@@ -478,9 +453,28 @@
     <div class="ys-card">
       <div class="ys-card-head">
         <h3>Live</h3>
-        <a href="#" id="ysAssetViewAll" class="ys-viewall">View all <i class="fa-solid fa-arrow-right"></i></a>
+        <a href="#" class="ys-viewall">View all <i class="fa-solid fa-arrow-right"></i></a>
       </div>
-      <div id="ysAssetList"></div>
+      <a href="#" class="ys-live-row">
+        <div class="ys-live-avatar" style="background:linear-gradient(135deg,#7c3aed,#1d8fff)">
+          <i class="fa-solid fa-music"></i>
+        </div>
+        <div class="ys-live-meta">
+          <div class="ys-live-title">😎 18+ 💙 FREIDAY WITH CHILL VIBES</div>
+          <div class="ys-live-sub">1.2K watching</div>
+        </div>
+        <span class="ys-live-badge"><span class="ys-live-dot"></span>LIVE</span>
+      </a>
+      <a href="#" class="ys-live-row">
+        <div class="ys-live-avatar" style="background:linear-gradient(135deg,#ef4444,#ff7a18)">
+          <i class="fa-solid fa-gamepad"></i>
+        </div>
+        <div class="ys-live-meta">
+          <div class="ys-live-title">mobile legend + Spotify</div>
+          <div class="ys-live-sub">856 watching</div>
+        </div>
+        <span class="ys-live-badge"><span class="ys-live-dot"></span>LIVE</span>
+      </a>
     </div>
 
     <a href="#" class="ys-predict">
@@ -2384,134 +2378,6 @@ window.openSourcesModal = openSourcesModal;
       }
     }catch(e){}
   })();
-
-/* ---------- LIVE ASSETS (crypto prices + TradingView modal) ---------- */
-(function(){
-  // Featured (shown in card) + extended (shown in View all popup)
-  const FEATURED = [
-    { id:'bitcoin',  sym:'BTC', name:'Bitcoin',  tv:'BINANCE:BTCUSDT', logo:'https://assets.coingecko.com/coins/images/1/small/bitcoin.png' },
-    { id:'ethereum', sym:'ETH', name:'Ethereum', tv:'BINANCE:ETHUSDT', logo:'https://assets.coingecko.com/coins/images/279/small/ethereum.png' },
-  ];
-  const EXTRA = [
-    { id:'solana',       sym:'SOL',  name:'Solana',      tv:'BINANCE:SOLUSDT',  logo:'https://assets.coingecko.com/coins/images/4128/small/solana.png' },
-    { id:'binancecoin',  sym:'BNB',  name:'BNB',         tv:'BINANCE:BNBUSDT',  logo:'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png' },
-    { id:'ripple',       sym:'XRP',  name:'XRP',         tv:'BINANCE:XRPUSDT',  logo:'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png' },
-    { id:'cardano',      sym:'ADA',  name:'Cardano',     tv:'BINANCE:ADAUSDT',  logo:'https://assets.coingecko.com/coins/images/975/small/cardano.png' },
-    { id:'dogecoin',     sym:'DOGE', name:'Dogecoin',    tv:'BINANCE:DOGEUSDT', logo:'https://assets.coingecko.com/coins/images/5/small/dogecoin.png' },
-    { id:'avalanche-2',  sym:'AVAX', name:'Avalanche',   tv:'BINANCE:AVAXUSDT', logo:'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png' },
-    { id:'chainlink',    sym:'LINK', name:'Chainlink',   tv:'BINANCE:LINKUSDT', logo:'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png' },
-    { id:'polkadot',     sym:'DOT',  name:'Polkadot',    tv:'BINANCE:DOTUSDT',  logo:'https://assets.coingecko.com/coins/images/12171/small/polkadot.png' },
-    { id:'tron',         sym:'TRX',  name:'TRON',        tv:'BINANCE:TRXUSDT',  logo:'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png' },
-    { id:'litecoin',     sym:'LTC',  name:'Litecoin',    tv:'BINANCE:LTCUSDT',  logo:'https://assets.coingecko.com/coins/images/2/small/litecoin.png' },
-    { id:'matic-network',sym:'MATIC',name:'Polygon',     tv:'BINANCE:MATICUSDT',logo:'https://assets.coingecko.com/coins/images/4713/small/polygon.png' },
-  ];
-  const ALL = FEATURED.concat(EXTRA);
-
-  // Inject modal once
-  const modal = document.createElement('div');
-  modal.className = 'ys-modal';
-  modal.id = 'ysModal';
-  modal.innerHTML = `
-    <div class="ys-modal-card" role="dialog" aria-modal="true">
-      <div class="ys-modal-head">
-        <h3 id="ysModalTitle">Chart</h3>
-        <button class="ys-modal-close" aria-label="Close">&times;</button>
-      </div>
-      <div class="ys-modal-body" id="ysModalBody"></div>
-    </div>`;
-  document.body.appendChild(modal);
-  const titleEl = modal.querySelector('#ysModalTitle');
-  const bodyEl = modal.querySelector('#ysModalBody');
-  function openModal(){ modal.classList.add('open'); document.body.style.overflow='hidden'; }
-  function closeModal(){ modal.classList.remove('open'); document.body.style.overflow=''; bodyEl.innerHTML=''; }
-  modal.querySelector('.ys-modal-close').addEventListener('click', closeModal);
-  modal.addEventListener('click', e=>{ if(e.target===modal) closeModal(); });
-  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
-
-  function fmtPrice(p){
-    if(p==null) return '—';
-    if(p >= 1000) return '$'+p.toLocaleString(undefined,{maximumFractionDigits:0});
-    if(p >= 1) return '$'+p.toLocaleString(undefined,{maximumFractionDigits:2});
-    return '$'+p.toLocaleString(undefined,{maximumFractionDigits:4});
-  }
-  function fmtChg(c){
-    if(c==null) return '0.00%';
-    return (c>=0?'+':'')+c.toFixed(2)+'%';
-  }
-
-  function rowHtml(a, price, chg){
-    const cls = (chg||0) >= 0 ? 'up' : 'down';
-    return `
-      <div class="ys-asset-row" data-tv="${a.tv}" data-name="${a.name}">
-        <div class="ys-asset-logo"><img src="${a.logo}" alt="${a.sym}" loading="lazy" onerror="this.style.display='none'"/></div>
-        <div class="ys-asset-meta">
-          <div class="ys-asset-name">${a.name}<span class="ys-asset-sym">${a.sym}</span></div>
-          <div class="ys-asset-price"><span>${fmtPrice(price)}</span><span class="ys-asset-chg ${cls}">${fmtChg(chg)}</span></div>
-        </div>
-        <button class="ys-view-chart" type="button">View chart</button>
-      </div>`;
-  }
-
-  function openChart(tv, name){
-    titleEl.textContent = name + ' — 5m Chart';
-    const url = `https://s.tradingview.com/widgetembed/?frameElementId=tvchart&symbol=${encodeURIComponent(tv)}&interval=5&hidesidetoolbar=1&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=Etc%2FUTC&withdateranges=1&hideideas=1`;
-    bodyEl.innerHTML = `<iframe src="${url}" allowtransparency="true" scrolling="no" allowfullscreen></iframe>`;
-    openModal();
-  }
-
-  function bindRows(container){
-    container.querySelectorAll('.ys-asset-row').forEach(row=>{
-      const tv = row.dataset.tv, name = row.dataset.name;
-      const handler = ()=> openChart(tv, name);
-      row.querySelector('.ys-view-chart').addEventListener('click', handler);
-    });
-  }
-
-  const list = document.getElementById('ysAssetList');
-  const viewAll = document.getElementById('ysAssetViewAll');
-  const priceMap = {}; // id -> {price, chg}
-
-  function renderFeatured(){
-    if(!list) return;
-    list.innerHTML = FEATURED.map(a=>{
-      const d = priceMap[a.id] || {};
-      return rowHtml(a, d.price, d.chg);
-    }).join('');
-    bindRows(list);
-  }
-
-  async function fetchPrices(){
-    try{
-      const ids = ALL.map(a=>a.id).join(',');
-      const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
-      if(!r.ok) throw 0;
-      const data = await r.json();
-      ALL.forEach(a=>{
-        const d = data[a.id];
-        if(d) priceMap[a.id] = { price:d.usd, chg:d.usd_24h_change };
-      });
-      renderFeatured();
-    }catch(e){ renderFeatured(); }
-  }
-
-  if(viewAll){
-    viewAll.addEventListener('click', e=>{
-      e.preventDefault();
-      titleEl.textContent = 'All assets';
-      const html = '<div class="ys-allist">' + EXTRA.map(a=>{
-        const d = priceMap[a.id] || {};
-        return rowHtml(a, d.price, d.chg);
-      }).join('') + '</div>';
-      bodyEl.innerHTML = html;
-      bindRows(bodyEl);
-      openModal();
-    });
-  }
-
-  renderFeatured();
-  fetchPrices();
-  setInterval(fetchPrices, 60 * 1000);
-})();
 </script>
 </body>
 </html>
