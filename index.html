@@ -1950,20 +1950,23 @@ window.openSourcesModal = openSourcesModal;
     const title = rawTitle.length > 100 ? rawTitle.slice(0, 97) + '...' : rawTitle;
     const link = (typeof getPostLink==='function') ? getPostLink(entry) : '';
     const rawTags = (entry.category||[]).map(c=>(c.term||'').trim().replace(/\s+/g,'')).filter(Boolean);
-    const tagSet = [rawTags[0] || 'Finance', 'YongSocial'];
+    const tagSet = rawTags.slice(0,3);
+    tagSet.push('YongSocial');
     const hashtags = tagSet.map(t=>'#'+t).join(' ');
     const prefix = pick(SHARE_PREFIXES);
-    const cta = pick(SHARE_CTAS);
-    const post = prefix + ' ' + title + '\n' + link + '\n\n' + hashtags + '\n\n' + cta;
-    return { post, link };
+    const post = prefix + ' ' + title + '\n' + link;
+    return { post, hashtags };
   }
   window.smartShare = function(platform, idx){
     const entry = entryFromIdx(idx);
     if(!entry){ if(typeof showToast==='function') showToast('Post unavailable'); return; }
-    const { post } = buildSharePost(entry);
+    const { post, hashtags } = buildSharePost(entry);
     if(platform==='x'){
+      // Copy hashtags to clipboard silently
+      try{ navigator.clipboard.writeText(hashtags); }catch(e){}
       const url = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(post);
       window.open(url, '_blank', 'noopener');
+      if(typeof showToast==='function') showToast('Hashtags copied — paste them in your tweet!');
     }
   };
 })();
