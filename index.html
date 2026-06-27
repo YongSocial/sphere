@@ -1954,7 +1954,8 @@ window.openSourcesModal = openSourcesModal;
     const hashtags = tagSet.map(t=>'#'+t).join(' ');
     const prefix = pick(SHARE_PREFIXES);
     const cta = pick(SHARE_CTAS);
-    const post = `${prefix} ${title}\n\n${hashtags}\n\n${cta}\n${link}`;
+    // Link placed right after title so it's never truncated by Twitter's 280-char limit
+    const post = prefix + ' ' + title + '\n' + link + '\n\n' + hashtags + '\n\n' + cta;
     return { post, link };
   }
   window.smartShare = function(platform, idx){
