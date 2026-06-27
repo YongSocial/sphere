@@ -1543,9 +1543,16 @@ window.openSourcesModal = openSourcesModal;
   /* ---- Hash-based profile page ---- */
   (function(){
     var hash = window.location.hash.replace('#','').trim();
-    if(!hash) return; // no hash = normal feed, do nothing
+    if(!hash) return;
+
+    function loadUserLocal(){ try{ return JSON.parse(localStorage.getItem('ys_user_v1')||'null'); }catch(e){ return null; } }
 
     // Hide the main app, show a profile page
+    document.addEventListener('DOMContentLoaded', function(){
+      var app = document.querySelector('.app') || document.getElementById('app');
+      if(app) app.style.display = 'none';
+    });
+    // Also hide immediately in case DOM is already ready
     var app = document.querySelector('.app') || document.getElementById('app');
     if(app) app.style.display = 'none';
 
@@ -1594,7 +1601,7 @@ window.openSourcesModal = openSourcesModal;
     document.body.appendChild(page);
 
     // Populate with signed-in user data if available
-    var u = loadUser();
+    var u = loadUserLocal();
     var avatar = document.getElementById('yppAvatar');
     var nameEl = document.getElementById('yppName');
     var handleEl = document.getElementById('yppHandle');
