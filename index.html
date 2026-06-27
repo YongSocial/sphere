@@ -687,10 +687,8 @@ function postHTML(entry, idx){
     </a>` : ''}
 
     <div class="actions">
-      <button class="a-btn ig" data-action="smart-share" data-platform="instagram" data-idx="${idx}" aria-label="Share on Instagram"><i class="fa-brands fa-instagram"></i></button>
       <button class="a-btn x" data-action="smart-share" data-platform="x" data-idx="${idx}" aria-label="Share on X"><i class="fa-brands fa-x-twitter"></i></button>
       <button class="a-btn fb" data-action="smart-share" data-platform="facebook" data-idx="${idx}" aria-label="Share on Facebook"><i class="fa-brands fa-facebook"></i></button>
-      <button class="a-btn wa" data-action="smart-share" data-platform="whatsapp" data-idx="${idx}" aria-label="Share on WhatsApp"><i class="fa-brands fa-whatsapp"></i></button>
       <div class="right">
         <button class="a-btn share" data-action="share" data-link="${link}" aria-label="Copy link"><i class="fa-solid fa-link"></i></button>
       </div>
@@ -1928,29 +1926,47 @@ window.openSourcesModal = openSourcesModal;
     const arr = (window.__entries) || ((window.cache && window.cache.all && window.cache.all.feed && window.cache.all.feed.entry) || []);
     return arr[idx];
   }
-  function buildShareText(entry){
+  var SHARE_PREFIXES = [
+    'LATEST:','🔥 JUST IN:','🔥 NOW:','🚨 BREAKING:','⚡ DEVELOPING:','📢 NEW:',
+    '📰 TRENDING:','🌍 UPDATE:','🎯 SPOTLIGHT:','📈 MARKET WATCH:','💥 BIG NEWS:',
+    '🔔 ALERT:','📍 TODAY\'S UPDATE:','🌟 FEATURED:','📣 HEADLINES:','🚀 HOT TOPIC:',
+    '👀 NOW HAPPENING:','💡 NEWS FLASH:','⏰ HAPPENING NOW:','🎙️ IN THE NEWS:',
+    '📊 MARKET UPDATE:','🔍 TOP STORY:'
+  ];
+  var SHARE_CTAS = [
+    '💡 More Insight','📖 Read More','🔍 Discover More','👀 Find Out Why',
+    '👇 See What Happened','⚡ Here\'s the Catch','🚨 Don\'t Miss This',
+    '📰 The Full Story','🤔 What Happens Next?','🔎 Uncover the Details',
+    '⛏️ Dig Deeper','📈 See the Analysis','🎯 Key Takeaways','📊 Explore the Data',
+    '💰 What Investors Should Know','🌍 The Bigger Picture','🧠 Learn More',
+    '📌 What You Need to Know','🚀 Discover Why','📑 Full Report',
+    '👁️ See Why It Matters','🔥 Trending Details','📉 Market Breakdown',
+    '💭 What This Means','🔬 Take a Closer Look','📚 Read the Full Story',
+    '🎙️ Get the Full Context','📰 Continue Reading','📍 Explore the Details',
+    '⚡ Learn What Happens Next'
+  ];
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  function buildSharePost(entry){
     const title = (entry && entry.title && entry.title.$t) || 'Yong Social';
     const link = (typeof getPostLink==='function') ? getPostLink(entry) : '';
-    const tags = (entry.category||[]).map(c=>(c.term||'').trim().replace(/[^a-zA-Z0-9]/g,'')).filter(Boolean).slice(0,4);
-    const hash = tags.length ? '\n\n' + tags.map(t=>'#'+t).join(' ') : '';
-    return { title, link, hash, full: `${title}\n\n${link}${hash}` };
+    const rawTags = (entry.category||[]).map(c=>(c.term||'').trim().replace(/[^a-zA-Z0-9]/g,'')).filter(Boolean);
+    const tagSet = rawTags.slice(0,3);
+    tagSet.push('YongSocial');
+    const hashtags = tagSet.map(t=>'#'+t).join(' ');
+    const prefix = pick(SHARE_PREFIXES);
+    const cta = pick(SHARE_CTAS);
+    const post = `${prefix} ${title}\n${hashtags}\n${cta}\n${link}`;
+    return { post, link };
   }
   window.smartShare = function(platform, idx){
     const entry = entryFromIdx(idx);
     if(!entry){ if(typeof showToast==='function') showToast('Post unavailable'); return; }
-    const { title, link, hash, full } = buildShareText(entry);
+    const { post, link } = buildSharePost(entry);
     let url;
     if(platform==='x'){
-      url = 'https://twitter.com/intent/tweet?text='+encodeURIComponent(title+hash)+'&url='+encodeURIComponent(link);
+      url = 'https://twitter.com/intent/tweet?text='+encodeURIComponent(post);
     } else if(platform==='facebook'){
-      url = 'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(link)+'&quote='+encodeURIComponent(title+hash);
-    } else if(platform==='whatsapp'){
-      url = 'https://wa.me/?text='+encodeURIComponent(full);
-    } else if(platform==='instagram'){
-      // Instagram has no web share intent — copy caption then open IG
-      try { navigator.clipboard.writeText(full); } catch(e){}
-      if(typeof showToast==='function') showToast('Caption copied — paste it in your Instagram post');
-      url = 'https://www.instagram.com/';
+      url = 'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(link)+'&quote='+encodeURIComponent(post);
     }
     if(url) window.open(url, '_blank', 'noopener');
   };
