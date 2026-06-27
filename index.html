@@ -1567,7 +1567,7 @@ window.openSourcesModal = openSourcesModal;
     if(typeof currentTab!=='undefined' && currentTab==='following' && typeof loadFeed==='function') loadFeed('following');
   });
 
-  function openProfile(){ renderTags(); profileOverlay.classList.add('open'); profileOverlay.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; }
+  function openProfile(){ profileOverlay.classList.add('open'); profileOverlay.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; }
   window.openProfileModal = openProfile;
 
   /* Firebase Google auth + Solana (Trust Wallet) */
